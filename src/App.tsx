@@ -11,16 +11,28 @@ export default function App() {
   const deletePages = useEditorStore((s) => s.deletePages);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
+  const clearSelection = useEditorStore((s) => s.clearSelection);
   const selection = useEditorStore((s) => s.selection);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const isMod = e.ctrlKey || e.metaKey;
-      if ((e.key === 'Delete' || e.key === 'Backspace') && !isMod) {
+      if (e.key === 'Escape') {
+        if (selection.size > 0) {
+          e.preventDefault();
+          clearSelection();
+        }
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && !isMod) {
         if (selection.size > 0) {
           e.preventDefault();
           deletePages([...selection]);
         }
+      } else if (isMod && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        const { pages, selectPage } = useEditorStore.getState();
+        pages.forEach((p) => {
+          if (!p.deleted) selectPage(p.id, true, false);
+        });
       } else if (isMod && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault();
         undo();
@@ -31,7 +43,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selection, deletePages, undo, redo]);
+  }, [selection, deletePages, undo, redo, clearSelection]);
 
   return (
     <div className="app">

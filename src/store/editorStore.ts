@@ -10,7 +10,6 @@ interface EditorState {
   lastSelectedId: string | null;
   past: Command[];
   future: Command[];
-  loadingThumbs: Set<string>;
   isExporting: boolean;
   error: string | null;
 
@@ -37,7 +36,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   lastSelectedId: null,
   past: [],
   future: [],
-  loadingThumbs: new Set(),
   isExporting: false,
   error: null,
 
