@@ -34,6 +34,7 @@ interface EditorState {
   clearAllAnnotations: () => void;
   applyAnnotations: () => Promise<void>;
   applyCrop: () => Promise<void>;
+  setCropDraft: (draft: { pageId: string; rect: { x: number; y: number; width: number; height: number } } | null) => void;
   addWatermark: (opts: { text: string; fontSize: number; opacity: number; rotation: number; color: string; scope: 'all' | 'current' }) => void;
   addHeaderFooter: (opts: { type: 'header' | 'footer'; text: string; fontSize: number; color: string }) => void;
 
@@ -252,6 +253,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
     set((state) => ({ annotations: { ...state.annotations, ...newAnnos } }));
   },
+
+  setCropDraft: (draft) => set({ cropDraft: draft }),
 
   loadDocument: async (path, fileName) => {
     try {

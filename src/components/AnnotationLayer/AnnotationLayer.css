@@ -19,3 +19,9 @@
 .anno-text-input { position: absolute; z-index: 30; padding: 2px 4px; font-size: 14px; border: 1px solid #1976d2; border-radius: 3px; outline: none; min-width: 100px; }
 
 .anno-hint { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); background: #1976d2; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; pointer-events: none; }
+
+.anno-draft.crop-draft { border-color: #d32f2f; background: rgba(211, 47, 47, 0.1); }
+
+.crop-mask { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.crop-mask > div { position: absolute; background: rgba(0, 0, 0, 0.45); }
+.crop-mask .crop-keep { background: transparent; border: 1px dashed #d32f2f; }

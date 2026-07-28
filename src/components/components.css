@@ -35,6 +35,13 @@
 .apply-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .apply-btn:not(:disabled):hover { background: #1565c0; }
 
+.content-inspector { width: 280px; }
+.content-inspector label { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 13px; color: #555; }
+.content-inspector input[type="color"] { width: 40px; height: 24px; padding: 0; }
+.content-inspector input:not([type="color"]) { flex: 1; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px; }
+.danger-btn { width: 100%; padding: 6px; margin-top: 8px; background: #d32f2f; color: white; border: none; border-radius: 4px; cursor: pointer; }
+.danger-btn:hover { background: #b71c1c; }
+
 .sidebar { width: 200px; border-right: 1px solid #ddd; padding: 12px; overflow-y: auto; background: #fafafa; }
 .sidebar h3 { font-size: 13px; color: #666; margin-bottom: 8px; }
 .sidebar .empty { color: #999; font-size: 13px; }

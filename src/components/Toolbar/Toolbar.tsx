@@ -76,8 +76,12 @@ function ContentToolbar() {
   const activeTool = useEditorStore((s) => s.activeTool);
   const setActiveTool = useEditorStore((s) => s.setActiveTool);
   const applyAnnotations = useEditorStore((s) => s.applyAnnotations);
+  const applyCrop = useEditorStore((s) => s.applyCrop);
   const annotations = useEditorStore((s) => s.annotations);
+  const cropDraft = useEditorStore((s) => s.cropDraft);
+  const setCropDraft = useEditorStore((s) => s.setCropDraft);
   const [applying, setApplying] = useState(false);
+  const [cropping, setCropping] = useState(false);
 
   const tools: Array<{ tool: typeof activeTool; label: string }> = [
     { tool: 'select', label: '选择' },
@@ -86,6 +90,7 @@ function ContentToolbar() {
     { tool: 'highlight', label: '高亮' },
     { tool: 'text', label: '文本批注' },
     { tool: 'image', label: '插入图片' },
+    { tool: 'crop', label: '裁剪' },
   ];
 
   const annoCount = Object.values(annotations).reduce((n, list) => n + list.length, 0);
@@ -96,6 +101,13 @@ function ContentToolbar() {
     setApplying(true);
     await applyAnnotations();
     setApplying(false);
+  };
+
+  const handleApplyCrop = async () => {
+    if (!cropDraft) return;
+    setCropping(true);
+    await applyCrop();
+    setCropping(false);
   };
 
   return (
@@ -116,7 +128,16 @@ function ContentToolbar() {
       <button onClick={() => openDialog('header')}>页眉</button>
       <button onClick={() => openDialog('footer')}>页脚</button>
       <span className="divider" />
-      <span className="tool-placeholder">裁剪(阶段4)</span>
+      {cropDraft ? (
+        <>
+          <button className="apply-btn" onClick={handleApplyCrop} disabled={cropping}>
+            {cropping ? '裁剪中...' : '应用裁剪'}
+          </button>
+          <button onClick={() => setCropDraft(null)}>取消裁剪</button>
+        </>
+      ) : (
+        <span className="tool-placeholder">选择裁剪工具后在页面上拖拽框选区域</span>
+      )}
       <span className="spacer" />
       <button onClick={() => setZoom(zoom - 0.1)} disabled={zoom <= 0.25}>−</button>
       <span className="zoom-display">{Math.round(zoom * 100)}%</span>

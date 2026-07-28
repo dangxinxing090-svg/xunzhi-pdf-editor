@@ -5,6 +5,7 @@ import { PageGrid } from './components/PageGrid/PageGrid';
 import { InspectorPanel } from './components/InspectorPanel/InspectorPanel';
 import { StatusBar } from './components/StatusBar/StatusBar';
 import { ReaderView } from './components/ReaderView/ReaderView';
+import { ContentInspector } from './components/AnnotationLayer/ContentInspector';
 import { useEditorStore } from './store/editorStore';
 import './App.css';
 
@@ -60,7 +61,10 @@ export default function App() {
             <InspectorPanel />
           </>
         ) : (
-          <ReaderView />
+          <>
+            <ReaderView />
+            {mode === 'content' && <ContentInspector />}
+          </>
         )}
       </div>
       <StatusBar />

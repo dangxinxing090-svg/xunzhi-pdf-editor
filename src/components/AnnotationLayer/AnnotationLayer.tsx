@@ -29,6 +29,8 @@ export function AnnotationLayer({ page, displayWidth, displayHeight }: Annotatio
   const updateAnnotation = useEditorStore((s) => s.updateAnnotation);
   const removeAnnotation = useEditorStore((s) => s.removeAnnotation);
   const selectAnnotation = useEditorStore((s) => s.selectAnnotation);
+  const setCropDraft = useEditorStore((s) => s.setCropDraft);
+  const cropDraft = useEditorStore((s) => s.cropDraft);
 
   const layerRef = useRef<HTMLDivElement>(null);
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
@@ -53,7 +55,7 @@ export function AnnotationLayer({ page, displayWidth, displayHeight }: Annotatio
     }
     const pos = getLayerPos(e);
 
-    if (activeTool === 'rect' || activeTool === 'ellipse' || activeTool === 'highlight') {
+    if (activeTool === 'rect' || activeTool === 'ellipse' || activeTool === 'highlight' || activeTool === 'crop') {
       setDragStart(pos);
       setDragCur(pos);
     } else if (activeTool === 'text') {
@@ -117,23 +119,28 @@ export function AnnotationLayer({ page, displayWidth, displayHeight }: Annotatio
       const h = Math.abs(dragCur.y - dragStart.y);
       if (w > 4 && h > 4) {
         const pdfRect = screenRectToPdf(left, top, w, h, meta);
-        const base = {
-          id: nextAnnoId(),
-          pageId: page.id,
-          x: pdfRect.x,
-          y: pdfRect.y,
-          width: pdfRect.width,
-          height: pdfRect.height,
-        };
-        let anno: Annotation | null = null;
-        if (activeTool === 'rect') {
-          anno = { ...base, type: 'rect', stroke: '#ff0000', strokeWidth: 2 } as ShapeAnno;
-        } else if (activeTool === 'ellipse') {
-          anno = { ...base, type: 'ellipse', stroke: '#ff0000', strokeWidth: 2 } as ShapeAnno;
+        if (activeTool === 'crop') {
+          // 裁剪:设置 cropDraft(框外区域将被裁掉)
+          setCropDraft({ pageId: page.id, rect: pdfRect });
         } else {
-          anno = { ...base, type: 'highlight', color: '#ffff00', opacity: 0.4 } as HighlightAnno;
+          const base = {
+            id: nextAnnoId(),
+            pageId: page.id,
+            x: pdfRect.x,
+            y: pdfRect.y,
+            width: pdfRect.width,
+            height: pdfRect.height,
+          };
+          let anno: Annotation | null = null;
+          if (activeTool === 'rect') {
+            anno = { ...base, type: 'rect', stroke: '#ff0000', strokeWidth: 2 } as ShapeAnno;
+          } else if (activeTool === 'ellipse') {
+            anno = { ...base, type: 'ellipse', stroke: '#ff0000', strokeWidth: 2 } as ShapeAnno;
+          } else {
+            anno = { ...base, type: 'highlight', color: '#ffff00', opacity: 0.4 } as HighlightAnno;
+          }
+          if (anno) addAnnotation(anno);
         }
-        if (anno) addAnnotation(anno);
       }
     }
     setDragStart(null);
@@ -159,7 +166,7 @@ export function AnnotationLayer({ page, displayWidth, displayHeight }: Annotatio
     }
   };
 
-  const isDragTool = activeTool === 'rect' || activeTool === 'ellipse' || activeTool === 'highlight';
+  const isDragTool = activeTool === 'rect' || activeTool === 'ellipse' || activeTool === 'highlight' || activeTool === 'crop';
   const dragRect =
     dragStart && dragCur
       ? {
@@ -252,7 +259,11 @@ export function AnnotationLayer({ page, displayWidth, displayHeight }: Annotatio
       })}
 
       {dragRect && isDragTool && (
-        <div className="anno-draft" style={dragRect} />
+        <div className={`anno-draft ${activeTool === 'crop' ? 'crop-draft' : ''}`} style={dragRect} />
+      )}
+
+      {cropDraft && cropDraft.pageId === page.id && (
+        <CropMask cropRect={pdfRectToScreen(cropDraft.rect.x, cropDraft.rect.y, cropDraft.rect.width, cropDraft.rect.height, meta)} layerWidth={displayWidth} layerHeight={displayHeight} />
       )}
 
       {editingText && (
@@ -324,6 +335,23 @@ function TextInputBox({ pos, meta, onSubmit, onCancel }: TextInputBoxProps) {
       }}
       onBlur={submit}
     />
+  );
+}
+
+function CropMask({ cropRect, layerWidth, layerHeight }: {
+  cropRect: { left: number; top: number; width: number; height: number };
+  layerWidth: number;
+  layerHeight: number;
+}) {
+  // 四块遮罩盖住裁剪框外的区域(上/下/左/右)
+  return (
+    <div className="crop-mask" aria-hidden>
+      <div style={{ left: 0, top: 0, width: layerWidth, height: cropRect.top }} />
+      <div style={{ left: 0, top: cropRect.top + cropRect.height, width: layerWidth, height: layerHeight - cropRect.top - cropRect.height }} />
+      <div style={{ left: 0, top: cropRect.top, width: cropRect.left, height: cropRect.height }} />
+      <div style={{ left: cropRect.left + cropRect.width, top: cropRect.top, width: layerWidth - cropRect.left - cropRect.width, height: cropRect.height }} />
+      <div className="crop-keep" style={{ left: cropRect.left, top: cropRect.top, width: cropRect.width, height: cropRect.height }} />
+    </div>
   );
 }
 
