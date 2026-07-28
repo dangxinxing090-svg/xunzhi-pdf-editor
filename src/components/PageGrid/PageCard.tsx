@@ -49,18 +49,15 @@ export function PageCard({ page, index }: Props) {
 
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       className={`page-card ${page.deleted ? 'deleted' : ''} ${selected ? 'selected' : ''}`}
       onClick={handleClick}
+      {...attributes}
+      {...listeners}
     >
-      <div
-        ref={setNodeRef}
-        style={style}
-        {...attributes}
-        {...listeners}
-      >
-        <canvas ref={canvasRef} />
-        <span className="page-number">{index + 1}</span>
-      </div>
+      <canvas ref={canvasRef} />
+      <span className="page-number">{index + 1}</span>
     </div>
   );
 }

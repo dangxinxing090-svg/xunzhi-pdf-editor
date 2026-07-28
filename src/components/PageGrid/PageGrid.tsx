@@ -1,4 +1,4 @@
-import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { useEditorStore } from '../../store/editorStore';
 import { PageCard } from './PageCard';
@@ -8,6 +8,11 @@ export function PageGrid() {
   const activeDocId = useEditorStore((s) => s.activeDocId);
   const selection = useEditorStore((s) => s.selection);
   const movePages = useEditorStore((s) => s.movePages);
+
+  // 点击与拖拽分离:指针移动 < 8px 视为点击(不启动拖拽),click 事件正常触发。
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+  );
 
   // 只显示当前活跃文档的页面(多文档各自独立,点击左侧文档切换)
   const pages = allPages.filter((p) => p.sourceDocId === activeDocId);
@@ -34,7 +39,7 @@ export function PageGrid() {
   };
 
   return (
-    <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={pages.map((p) => p.id)} strategy={rectSortingStrategy}>
         <div className="page-grid">
           {pages.map((page, index) => (
