@@ -24,6 +24,7 @@ interface EditorState {
   deletePages: (pageIds: string[]) => void;
   undo: () => void;
   redo: () => void;
+  exportPdf: (mode: 'current' | 'selected' | 'all') => Promise<void>;
 }
 
 let docCounter = 0;
@@ -251,5 +252,40 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       past: [...past, cmd],
       future: future.slice(0, -1),
     });
+  },
+
+  exportPdf: async (mode) => {
+    const { pages, selection, activeDocId } = get();
+    let exportPages: Page[];
+    if (mode === 'current') {
+      exportPages = pages.filter((p) => p.sourceDocId === activeDocId && !p.deleted);
+    } else if (mode === 'selected') {
+      exportPages = pages.filter((p) => selection.has(p.id) && !p.deleted);
+    } else {
+      exportPages = pages.filter((p) => !p.deleted);
+    }
+    if (exportPages.length === 0) {
+      set({ error: '没有可导出的页面' });
+      return;
+    }
+
+    set({ isExporting: true, error: null });
+    try {
+      const savePath = await window.electronAPI.savePdfDialog();
+      if (!savePath) {
+        set({ isExporting: false });
+        return;
+      }
+      const workerPages = exportPages.map((p) => ({
+        sourceDocId: p.sourceDocId,
+        sourcePageIndex: p.sourcePageIndex,
+        rotation: p.rotation,
+      }));
+      const buffer = await workerClient.exportPdf(workerPages);
+      await window.electronAPI.writePdf(savePath, buffer);
+      set({ isExporting: false });
+    } catch (err) {
+      set({ isExporting: false, error: String(err) });
+    }
   },
 }));
