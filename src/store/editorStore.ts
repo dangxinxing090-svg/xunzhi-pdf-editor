@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Page, SourceDoc, Command, EditorMode, Annotation, ContentTool } from '../types/pdf';
+import type { Page, SourceDoc, Command, EditorMode, Annotation, ContentTool, AnnoSpec } from '../types/pdf';
 import { workerClient } from '../worker/workerClient';
 import { loadPdfForRender, disposeRenderDoc } from '../lib/pdfRenderer';
 
@@ -20,6 +20,7 @@ interface EditorState {
   activeTool: ContentTool;
   annotations: Record<string, Annotation[]>; // pageId -> annotations
   selectedAnnoId: string | null;
+  cropDraft: { pageId: string; rect: { x: number; y: number; width: number; height: number } } | null;
 
   setMode: (mode: EditorMode) => void;
   setZoom: (zoom: number) => void;
@@ -31,6 +32,10 @@ interface EditorState {
   selectAnnotation: (id: string | null) => void;
   clearAnnotationsForPage: (pageId: string) => void;
   clearAllAnnotations: () => void;
+  applyAnnotations: () => Promise<void>;
+  applyCrop: () => Promise<void>;
+  addWatermark: (opts: { text: string; fontSize: number; opacity: number; rotation: number; color: string; scope: 'all' | 'current' }) => void;
+  addHeaderFooter: (opts: { type: 'header' | 'footer'; text: string; fontSize: number; color: string }) => void;
 
   loadDocument: (path: string, fileName: string) => Promise<void>;
   setPageThumbnail: (pageId: string, dataUrl: string) => void;
@@ -60,6 +65,7 @@ interface EditorState {
 
 let docCounter = 0;
 let pageCounter = 0;
+let storeAnnoCounter = 0;
 
 function nextDocId(): string {
   return `doc-${++docCounter}`;
@@ -67,6 +73,10 @@ function nextDocId(): string {
 
 function nextPageId(): string {
   return `p-${++pageCounter}`;
+}
+
+function nextStoreAnnoId(): string {
+  return `sa-${++storeAnnoCounter}`;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -86,6 +96,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   activeTool: 'select',
   annotations: {},
   selectedAnnoId: null,
+  cropDraft: null,
 
   setMode: (mode) => set({ mode, activeTool: 'select', selectedAnnoId: null }),
   setZoom: (zoom) => set({ zoom: Math.max(0.25, Math.min(4, zoom)) }),
@@ -132,6 +143,115 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }),
 
   clearAllAnnotations: () => set({ annotations: {}, selectedAnnoId: null }),
+
+  applyAnnotations: async () => {
+    const { annotations, pages, activeDocId } = get();
+    if (!activeDocId) return;
+    // 收集活动文档所有页的标注,转成 AnnoSpec(pageIndex 替代 pageId)
+    const docPages = pages.filter((p) => p.sourceDocId === activeDocId);
+    const specs: AnnoSpec[] = [];
+    for (const page of docPages) {
+      const list = annotations[page.id] ?? [];
+      for (const a of list) {
+        const spec: AnnoSpec = {
+          pageIndex: page.sourcePageIndex,
+          type: a.type,
+          x: a.x, y: a.y, width: a.width, height: a.height,
+        };
+        if (a.type === 'rect' || a.type === 'ellipse') {
+          spec.stroke = a.stroke; spec.strokeWidth = a.strokeWidth; spec.fill = a.fill;
+        } else if (a.type === 'highlight') {
+          spec.color = a.color; spec.opacity = a.opacity;
+        } else if (a.type === 'image') {
+          spec.imageDataUrl = a.dataUrl;
+        } else {
+          // text/watermark/header/footer
+          const t = a as import('../types/pdf').TextAnno;
+          spec.text = t.text; spec.color = t.color; spec.fontSize = t.fontSize;
+          spec.rotation = t.rotation; spec.opacity = t.opacity;
+        }
+        specs.push(spec);
+      }
+    }
+    if (specs.length === 0) {
+      set({ error: '没有可应用的标注' });
+      return;
+    }
+
+    try {
+      const { renderBuffer } = await workerClient.applyAnnotations(activeDocId, specs);
+      // 重载 pdf.js 渲染文档(内容已烘焙)
+      disposeRenderDoc(activeDocId);
+      await loadPdfForRender(activeDocId, renderBuffer);
+      // 清空已应用的标注(已固化进 PDF),保留未应用的(此处全部已应用)
+      set({ annotations: {}, selectedAnnoId: null, error: null });
+    } catch (err) {
+      set({ error: `应用标注失败:${String(err)}` });
+    }
+  },
+
+  applyCrop: async () => {
+    const { cropDraft, pages, activeDocId } = get();
+    if (!activeDocId || !cropDraft) return;
+    const page = pages.find((p) => p.id === cropDraft.pageId);
+    if (!page) return;
+    try {
+      const { renderBuffer } = await workerClient.applyCrop(activeDocId, [
+        { pageIndex: page.sourcePageIndex, ...cropDraft.rect },
+      ]);
+      disposeRenderDoc(activeDocId);
+      await loadPdfForRender(activeDocId, renderBuffer);
+      set({ cropDraft: null, error: null });
+    } catch (err) {
+      set({ error: `裁剪失败:${String(err)}` });
+    }
+  },
+
+  addWatermark: ({ text, fontSize, opacity, rotation, color, scope }) => {
+    const { pages, activeDocId, currentPageIndex } = get();
+    if (!activeDocId) return;
+    const docPages = pages.filter((p) => p.sourceDocId === activeDocId);
+    const targetPages = scope === 'all' ? docPages : [docPages[currentPageIndex]].filter(Boolean);
+    const newAnnos: Record<string, Annotation[]> = {};
+    for (const page of targetPages) {
+      // 水印居中:以页面中心为锚点
+      const w = text.length * fontSize * 0.6;
+      const h = fontSize;
+      const anno: Annotation = {
+        id: nextStoreAnnoId(),
+        pageId: page.id,
+        type: 'watermark',
+        x: (page.width - w) / 2,
+        y: (page.height - h) / 2,
+        width: w, height: h,
+        text, color, fontSize, opacity, rotation,
+      } as import('../types/pdf').TextAnno;
+      newAnnos[page.id] = [...(get().annotations[page.id] ?? []), anno];
+    }
+    set((state) => ({ annotations: { ...state.annotations, ...newAnnos } }));
+  },
+
+  addHeaderFooter: ({ type, text, fontSize, color }) => {
+    const { pages, activeDocId } = get();
+    if (!activeDocId) return;
+    const docPages = pages.filter((p) => p.sourceDocId === activeDocId);
+    const margin = 36; // 0.5 inch 边距
+    const newAnnos: Record<string, Annotation[]> = {};
+    for (const page of docPages) {
+      const w = text.length * fontSize * 0.6;
+      const anno: Annotation = {
+        id: nextStoreAnnoId(),
+        pageId: page.id,
+        type,
+        x: (page.width - w) / 2,
+        y: type === 'header' ? page.height - margin - fontSize : margin,
+        width: w, height: fontSize,
+        text, color, fontSize,
+      } as import('../types/pdf').TextAnno;
+      newAnnos[page.id] = [...(get().annotations[page.id] ?? []), anno];
+    }
+    set((state) => ({ annotations: { ...state.annotations, ...newAnnos } }));
+  },
 
   loadDocument: async (path, fileName) => {
     try {

@@ -1,4 +1,5 @@
-import type { WorkerRequest, WorkerResponse, PageSpec } from './protocol';
+import type { WorkerRequest, WorkerResponse, PageSpec, DocLoadResult, ApplyAnnotationsPayload, ApplyCropPayload } from './protocol';
+import type { AnnoSpec } from '../types/pdf';
 
 interface Pending {
   resolve: (data: unknown) => void;
@@ -44,20 +45,17 @@ function request<T = unknown>(
 
 export const workerClient = {
   loadDoc: (docId: string, buffer: ArrayBuffer) =>
-    request<{ pageCount: number; pages: Array<{ width: number; height: number }> }>(
-      'loadDoc',
-      { docId, buffer },
-      [buffer],
-    ),
-  renderThumb: (docId: string, pageIndex: number) =>
-    request<ImageBitmap>('renderThumb', { docId, pageIndex }),
+    request<DocLoadResult>('loadDoc', { docId, buffer }, [buffer]),
   exportPdf: (
     pages: Array<{ sourceDocId: string; sourcePageIndex: number; rotation: 0 | 90 | 180 | 270 }>,
   ) => request<ArrayBuffer>('exportPdf', { pages }),
   disposeDoc: (docId: string) => request<null>('disposeDoc', { docId }),
   createDocFromPages: (targetDocId: string, pages: PageSpec[]) =>
-    request<{ pageCount: number; pages: Array<{ width: number; height: number }> }>(
-      'createDocFromPages',
-      { targetDocId, pages },
-    ),
+    request<DocLoadResult>('createDocFromPages', { targetDocId, pages }),
+  insertPagesIntoDoc: (docId: string, insertAt: number, pages: PageSpec[]) =>
+    request<DocLoadResult>('insertPagesIntoDoc', { docId, insertAt, pages }),
+  applyAnnotations: (docId: string, annotations: AnnoSpec[]) =>
+    request<DocLoadResult>('applyAnnotations', { docId, annotations } as ApplyAnnotationsPayload),
+  applyCrop: (docId: string, crops: ApplyCropPayload['crops']) =>
+    request<DocLoadResult>('applyCrop', { docId, crops } as ApplyCropPayload),
 };

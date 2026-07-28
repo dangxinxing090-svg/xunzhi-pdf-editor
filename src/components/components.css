@@ -22,6 +22,19 @@
 .tool-group button.active { background: #1976d2; color: white; }
 .tool-group button:not(.active):hover { background: #e3f2fd; }
 
+.content-form-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: flex; align-items: center; justify-content: center; }
+.content-form { background: white; padding: 16px 20px; border-radius: 6px; min-width: 320px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.content-form h3 { margin-bottom: 12px; font-size: 15px; }
+.content-form label { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 13px; color: #555; }
+.content-form input, .content-form select { padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; font-size: 13px; flex: 1; }
+.content-form input[type="color"] { width: 40px; height: 24px; padding: 0; }
+.content-form .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.content-form .form-actions button { padding: 6px 16px; cursor: pointer; }
+
+.apply-btn { background: #1976d2; color: white; border: none; border-radius: 4px; font-weight: 500; }
+.apply-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.apply-btn:not(:disabled):hover { background: #1565c0; }
+
 .sidebar { width: 200px; border-right: 1px solid #ddd; padding: 12px; overflow-y: auto; background: #fafafa; }
 .sidebar h3 { font-size: 13px; color: #666; margin-bottom: 8px; }
 .sidebar .empty { color: #999; font-size: 13px; }

@@ -1,18 +1,22 @@
-import { loadPdfFromBuffer, extractPageMeta, buildExportPdf, buildDocFromPages } from './pdfEngine';
-import { loadPdfForRender, disposeDoc } from './thumbRenderer';
-import type { WorkerRequest, WorkerResponse, PageSpec } from './protocol';
+import { loadPdfFromBuffer, extractPageMeta, buildExportPdf, buildDocFromPages, insertPagesIntoDoc, applyAnnotations, applyCrop } from './pdfEngine';
+import type { WorkerRequest, WorkerResponse, PageSpec, ApplyAnnotationsPayload, ApplyCropPayload } from './protocol';
 
+// Worker 只负责 pdf-lib 操作(加载/导出/合成)。pdf.js 渲染在渲染进程主线程进行。
 const docs = new Map<string, import('pdf-lib').PDFDocument>();
-// 缓存已渲染的 OffscreenCanvas(按 docId:pageIndex),不随 transfer 失效。
-// 每次请求从此 canvas 生成新的 ImageBitmap 用于 transfer。
-const canvasCache = new Map<string, OffscreenCanvas>();
 
 function respond(msg: WorkerResponse, transfer?: Transferable[]): void {
   (self as unknown as Worker).postMessage(msg, transfer ?? []);
 }
 
-function cacheKey(docId: string, pageIndex: number): string {
-  return `${docId}:${pageIndex}`;
+/**
+ * 把 pdf-lib PDFDocument 序列化为 ArrayBuffer,供主线程的 pdf.js 重新加载渲染。
+ */
+async function pdfToBuffer(pdf: import('pdf-lib').PDFDocument): Promise<ArrayBuffer> {
+  const bytes = await pdf.save();
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer;
 }
 
 async function handleRequest(req: WorkerRequest): Promise<void> {
@@ -22,50 +26,22 @@ async function handleRequest(req: WorkerRequest): Promise<void> {
         const { docId, buffer } = req.payload as { docId: string; buffer: ArrayBuffer };
         const pdf = await loadPdfFromBuffer(buffer);
         docs.set(docId, pdf);
-        await loadPdfForRender(docId, buffer);
         const meta = extractPageMeta(pdf);
-        respond({ id: req.id, ok: true, data: meta });
-        break;
-      }
-      case 'renderThumb': {
-        const { docId, pageIndex } = req.payload as {
-          docId: string;
-          pageIndex: number;
-        };
-        const key = cacheKey(docId, pageIndex);
-        let canvas = canvasCache.get(key);
-        if (!canvas) {
-          // renderThumb 现在渲染原始方向位图(无 rotation),由渲染进程统一旋转。
-          const { renderToCanvas } = await import('./thumbRenderer');
-          canvas = await renderToCanvas(docId, pageIndex);
-          canvasCache.set(key, canvas);
-        }
-        // 从缓存 canvas 生成新的 ImageBitmap(transfer 不会消耗 canvas)。
-        const bitmap = await createImageBitmap(canvas);
-        respond({ id: req.id, ok: true, data: bitmap }, [bitmap]);
+        // 返回元数据 + 序列化字节(主线程用它加载到 pdf.js 渲染)
+        const renderBuffer = await pdfToBuffer(pdf);
+        respond({ id: req.id, ok: true, data: { meta, renderBuffer } }, [renderBuffer]);
         break;
       }
       case 'exportPdf': {
         const { pages } = req.payload as { pages: Array<{ sourceDocId: string; sourcePageIndex: number; rotation: 0 | 90 | 180 | 270 }> };
         const newPdf = await buildExportPdf(docs, pages);
-        const bytes = await newPdf.save();
-        const buffer = bytes.buffer.slice(
-          bytes.byteOffset,
-          bytes.byteOffset + bytes.byteLength,
-        ) as ArrayBuffer;
+        const buffer = await pdfToBuffer(newPdf);
         respond({ id: req.id, ok: true, data: buffer }, [buffer]);
         break;
       }
       case 'disposeDoc': {
         const { docId } = req.payload as { docId: string };
         docs.delete(docId);
-        // 清理该文档的所有缩略图缓存(key 以 docId: 开头)
-        for (const key of canvasCache.keys()) {
-          if (key.startsWith(`${docId}:`)) {
-            canvasCache.delete(key);
-          }
-        }
-        disposeDoc(docId);
         respond({ id: req.id, ok: true, data: null });
         break;
       }
@@ -73,15 +49,38 @@ async function handleRequest(req: WorkerRequest): Promise<void> {
         const { targetDocId, pages } = req.payload as { targetDocId: string; pages: PageSpec[] };
         const newPdf = await buildDocFromPages(docs, pages);
         docs.set(targetDocId, newPdf);
-        // pdf.js 需要独立的文档对象:save 后重新加载
-        const bytes = await newPdf.save();
-        const reloadBuffer = bytes.buffer.slice(
-          bytes.byteOffset,
-          bytes.byteOffset + bytes.byteLength,
-        ) as ArrayBuffer;
-        await loadPdfForRender(targetDocId, reloadBuffer);
         const meta = extractPageMeta(newPdf);
-        respond({ id: req.id, ok: true, data: meta });
+        const renderBuffer = await pdfToBuffer(newPdf);
+        respond({ id: req.id, ok: true, data: { meta, renderBuffer } }, [renderBuffer]);
+        break;
+      }
+      case 'insertPagesIntoDoc': {
+        const { docId, insertAt, pages } = req.payload as {
+          docId: string;
+          insertAt: number;
+          pages: PageSpec[];
+        };
+        const pdf = await insertPagesIntoDoc(docs, docId, insertAt, pages);
+        const meta = extractPageMeta(pdf);
+        // 重新序列化供主线程 pdf.js 重新加载(页面索引已变)
+        const renderBuffer = await pdfToBuffer(pdf);
+        respond({ id: req.id, ok: true, data: { meta, renderBuffer } }, [renderBuffer]);
+        break;
+      }
+      case 'applyAnnotations': {
+        const { docId, annotations } = req.payload as ApplyAnnotationsPayload;
+        const pdf = await applyAnnotations(docs, docId, annotations);
+        const meta = extractPageMeta(pdf);
+        const renderBuffer = await pdfToBuffer(pdf);
+        respond({ id: req.id, ok: true, data: { meta, renderBuffer } }, [renderBuffer]);
+        break;
+      }
+      case 'applyCrop': {
+        const { docId, crops } = req.payload as ApplyCropPayload;
+        const pdf = await applyCrop(docs, docId, crops);
+        const meta = extractPageMeta(pdf);
+        const renderBuffer = await pdfToBuffer(pdf);
+        respond({ id: req.id, ok: true, data: { meta, renderBuffer } }, [renderBuffer]);
         break;
       }
       default:

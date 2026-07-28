@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import type { EditorMode } from '../../types/pdf';
+import { ContentForms, openDialog } from '../AnnotationLayer/ContentForms';
 
 const MODE_BUTTONS: Array<{ mode: EditorMode; label: string }> = [
   { mode: 'read', label: '阅读' },
@@ -74,6 +75,9 @@ function ContentToolbar() {
   const setZoom = useEditorStore((s) => s.setZoom);
   const activeTool = useEditorStore((s) => s.activeTool);
   const setActiveTool = useEditorStore((s) => s.setActiveTool);
+  const applyAnnotations = useEditorStore((s) => s.applyAnnotations);
+  const annotations = useEditorStore((s) => s.annotations);
+  const [applying, setApplying] = useState(false);
 
   const tools: Array<{ tool: typeof activeTool; label: string }> = [
     { tool: 'select', label: '选择' },
@@ -83,6 +87,16 @@ function ContentToolbar() {
     { tool: 'text', label: '文本批注' },
     { tool: 'image', label: '插入图片' },
   ];
+
+  const annoCount = Object.values(annotations).reduce((n, list) => n + list.length, 0);
+
+  const handleApply = async () => {
+    if (annoCount === 0) return;
+    if (!window.confirm(`将 ${annoCount} 个标注烘焙进 PDF,此操作不可撤销单个标注。继续?`)) return;
+    setApplying(true);
+    await applyAnnotations();
+    setApplying(false);
+  };
 
   return (
     <>
@@ -98,11 +112,20 @@ function ContentToolbar() {
         ))}
       </div>
       <span className="divider" />
-      <span className="tool-placeholder">水印/页眉/页脚/裁剪/应用(阶段3-4)</span>
+      <button onClick={() => openDialog('watermark')}>水印</button>
+      <button onClick={() => openDialog('header')}>页眉</button>
+      <button onClick={() => openDialog('footer')}>页脚</button>
+      <span className="divider" />
+      <span className="tool-placeholder">裁剪(阶段4)</span>
       <span className="spacer" />
       <button onClick={() => setZoom(zoom - 0.1)} disabled={zoom <= 0.25}>−</button>
       <span className="zoom-display">{Math.round(zoom * 100)}%</span>
       <button onClick={() => setZoom(zoom + 0.1)} disabled={zoom >= 4}>+</button>
+      <span className="divider" />
+      <button className="apply-btn" onClick={handleApply} disabled={annoCount === 0 || applying}>
+        {applying ? '应用中...' : `应用 (${annoCount})`}
+      </button>
+      <ContentForms />
     </>
   );
 }
