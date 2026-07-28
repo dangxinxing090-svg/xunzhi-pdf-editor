@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { Page } from '../../types/pdf';
 import { useEditorStore } from '../../store/editorStore';
 import { workerClient } from '../../worker/workerClient';
@@ -11,6 +13,11 @@ interface Props {
 export function PageCard({ page, index }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const setPageThumbnail = useEditorStore((s) => s.setPageThumbnail);
+  const selected = useEditorStore((s) => s.selection.has(page.id));
+  const selectPage = useEditorStore((s) => s.selectPage);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: page.id,
+  });
 
   useEffect(() => {
     if (page.thumbnail) {
@@ -30,8 +37,25 @@ export function PageCard({ page, index }: Props) {
     };
   }, [page.thumbnail, page.rotation, page.id, page.sourceDocId, page.sourcePageIndex, setPageThumbnail]);
 
+  const handleClick = (e: React.MouseEvent) => {
+    selectPage(page.id, e.ctrlKey || e.metaKey, e.shiftKey);
+  };
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
-    <div className={`page-card ${page.deleted ? 'deleted' : ''}`}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`page-card ${page.deleted ? 'deleted' : ''} ${selected ? 'selected' : ''}`}
+      onClick={handleClick}
+      {...attributes}
+      {...listeners}
+    >
       <canvas ref={canvasRef} />
       <span className="page-number">{index + 1}</span>
     </div>

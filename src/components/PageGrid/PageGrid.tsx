@@ -1,8 +1,11 @@
+import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { useEditorStore } from '../../store/editorStore';
 import { PageCard } from './PageCard';
 
 export function PageGrid() {
   const pages = useEditorStore((s) => s.pages);
+  const movePages = useEditorStore((s) => s.movePages);
 
   if (pages.length === 0) {
     return (
@@ -12,11 +15,23 @@ export function PageGrid() {
     );
   }
 
+  const handleDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const toIndex = pages.findIndex((p) => p.id === over.id);
+    if (toIndex === -1) return;
+    movePages([String(active.id)], toIndex);
+  };
+
   return (
-    <div className="page-grid">
-      {pages.map((page, index) => (
-        <PageCard key={page.id} page={page} index={index} />
-      ))}
-    </div>
+    <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={pages.map((p) => p.id)} strategy={rectSortingStrategy}>
+        <div className="page-grid">
+          {pages.map((page, index) => (
+            <PageCard key={page.id} page={page} index={index} />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
   );
 }
