@@ -1,5 +1,5 @@
 import { loadPdfFromBuffer, extractPageMeta, buildExportPdf } from './pdfEngine';
-import { loadPdfForRender } from './thumbRenderer';
+import { loadPdfForRender, disposeDoc } from './thumbRenderer';
 import type { WorkerRequest, WorkerResponse } from './protocol';
 
 const docs = new Map<string, import('pdf-lib').PDFDocument>();
@@ -54,6 +54,19 @@ async function handleRequest(req: WorkerRequest): Promise<void> {
           bytes.byteOffset + bytes.byteLength,
         ) as ArrayBuffer;
         respond({ id: req.id, ok: true, data: buffer }, [buffer]);
+        break;
+      }
+      case 'disposeDoc': {
+        const { docId } = req.payload as { docId: string };
+        docs.delete(docId);
+        // 清理该文档的所有缩略图缓存(key 以 docId: 开头)
+        for (const key of canvasCache.keys()) {
+          if (key.startsWith(`${docId}:`)) {
+            canvasCache.delete(key);
+          }
+        }
+        disposeDoc(docId);
+        respond({ id: req.id, ok: true, data: null });
         break;
       }
       default:

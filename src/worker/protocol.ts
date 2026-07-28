@@ -1,9 +1,9 @@
-export type WorkerRequestType = 'loadDoc' | 'renderThumb' | 'exportPdf';
+export type WorkerRequestType = 'loadDoc' | 'renderThumb' | 'exportPdf' | 'disposeDoc';
 
 export interface WorkerRequest {
   id: string;
   type: WorkerRequestType;
-  payload: LoadDocPayload | RenderThumbPayload | ExportPdfPayload;
+  payload: LoadDocPayload | RenderThumbPayload | ExportPdfPayload | DisposeDocPayload;
 }
 
 export interface LoadDocPayload {
@@ -23,6 +23,10 @@ export interface ExportPdfPayload {
     sourcePageIndex: number;
     rotation: 0 | 90 | 180 | 270;
   }>;
+}
+
+export interface DisposeDocPayload {
+  docId: string;
 }
 
 export interface WorkerResponse {

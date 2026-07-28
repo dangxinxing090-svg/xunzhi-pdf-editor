@@ -24,6 +24,7 @@ interface EditorState {
   undo: () => void;
   redo: () => void;
   exportPdf: (mode: 'current' | 'selected' | 'all') => Promise<void>;
+  closeDocument: (docId: string) => Promise<void>;
 }
 
 let docCounter = 0;
@@ -284,6 +285,47 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       set({ isExporting: false });
     } catch (err) {
       set({ isExporting: false, error: String(err) });
+    }
+  },
+
+  closeDocument: async (docId) => {
+    const { pages, selection, sourceDocs, activeDocId } = get();
+    // 找到该文档的所有页面,释放其 ImageBitmap
+    const removedPages = pages.filter((p) => p.sourceDocId === docId);
+    removedPages.forEach((p) => {
+      if (p.thumbnail) p.thumbnail.close();
+    });
+    const removedIds = new Set(removedPages.map((p) => p.id));
+
+    const remainingPages = pages.filter((p) => p.sourceDocId !== docId);
+    const remainingDocs = sourceDocs.filter((d) => d.id !== docId);
+    const remainingSelection = new Set(
+      [...selection].filter((id) => !removedIds.has(id)),
+    );
+    // 若关闭的是当前活跃文档,切到剩余的第一个(或 null)
+    const nextActive =
+      activeDocId === docId
+        ? remainingDocs[0]?.id ?? null
+        : activeDocId;
+
+    set({
+      pages: remainingPages,
+      sourceDocs: remainingDocs,
+      selection: remainingSelection,
+      lastSelectedId: removedIds.has(selection.values().next().value ?? '')
+        ? null
+        : get().lastSelectedId,
+      activeDocId: nextActive,
+      // 历史栈中可能引用已删除页面,清空避免撤销到无效状态
+      past: [],
+      future: [],
+    });
+
+    // 通知 Worker 释放该文档的 pdf-lib/pdf.js 文档与缩略图缓存
+    try {
+      await workerClient.disposeDoc(docId);
+    } catch {
+      // 文档可能从未成功加载,忽略释放错误
     }
   },
 }));

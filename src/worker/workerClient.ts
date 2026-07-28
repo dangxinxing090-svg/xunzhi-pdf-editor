@@ -54,4 +54,5 @@ export const workerClient = {
   exportPdf: (
     pages: Array<{ sourceDocId: string; sourcePageIndex: number; rotation: 0 | 90 | 180 | 270 }>,
   ) => request<ArrayBuffer>('exportPdf', { pages }),
+  disposeDoc: (docId: string) => request<null>('disposeDoc', { docId }),
 };
