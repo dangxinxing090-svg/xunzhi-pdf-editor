@@ -19,17 +19,19 @@ export default function App() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const isMod = e.ctrlKey || e.metaKey;
+      // 页面级快捷键(删除/全选)只在页面编辑模式生效,避免与内容编辑的标注删除冲突
+      const pageShortcuts = useEditorStore.getState().mode === 'pages';
       if (e.key === 'Escape') {
         if (selection.size > 0) {
           e.preventDefault();
           clearSelection();
         }
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && !isMod) {
+      } else if (pageShortcuts && (e.key === 'Delete' || e.key === 'Backspace') && !isMod) {
         if (selection.size > 0) {
           e.preventDefault();
           deletePages([...selection]);
         }
-      } else if (isMod && e.key.toLowerCase() === 'a') {
+      } else if (pageShortcuts && isMod && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         const { pages, selectPage } = useEditorStore.getState();
         pages.forEach((p) => {

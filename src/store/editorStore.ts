@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Page, SourceDoc, Command, EditorMode } from '../types/pdf';
+import type { Page, SourceDoc, Command, EditorMode, Annotation, ContentTool } from '../types/pdf';
 import { workerClient } from '../worker/workerClient';
 import { loadPdfForRender, disposeRenderDoc } from '../lib/pdfRenderer';
 
@@ -17,10 +17,20 @@ interface EditorState {
   mode: EditorMode;
   zoom: number;
   currentPageIndex: number;
+  activeTool: ContentTool;
+  annotations: Record<string, Annotation[]>; // pageId -> annotations
+  selectedAnnoId: string | null;
 
   setMode: (mode: EditorMode) => void;
   setZoom: (zoom: number) => void;
   setCurrentPageIndex: (index: number) => void;
+  setActiveTool: (tool: ContentTool) => void;
+  addAnnotation: (anno: Annotation) => void;
+  updateAnnotation: (id: string, patch: Partial<Annotation>) => void;
+  removeAnnotation: (id: string) => void;
+  selectAnnotation: (id: string | null) => void;
+  clearAnnotationsForPage: (pageId: string) => void;
+  clearAllAnnotations: () => void;
 
   loadDocument: (path: string, fileName: string) => Promise<void>;
   setPageThumbnail: (pageId: string, dataUrl: string) => void;
@@ -73,10 +83,55 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   mode: 'read',
   zoom: 1.0,
   currentPageIndex: 0,
+  activeTool: 'select',
+  annotations: {},
+  selectedAnnoId: null,
 
-  setMode: (mode) => set({ mode }),
+  setMode: (mode) => set({ mode, activeTool: 'select', selectedAnnoId: null }),
   setZoom: (zoom) => set({ zoom: Math.max(0.25, Math.min(4, zoom)) }),
   setCurrentPageIndex: (index) => set({ currentPageIndex: index }),
+  setActiveTool: (tool) => set({ activeTool: tool, selectedAnnoId: null }),
+
+  addAnnotation: (anno) =>
+    set((state) => ({
+      annotations: {
+        ...state.annotations,
+        [anno.pageId]: [...(state.annotations[anno.pageId] ?? []), anno],
+      },
+      selectedAnnoId: anno.id,
+    })),
+
+  updateAnnotation: (id, patch) =>
+    set((state) => ({
+      annotations: Object.fromEntries(
+        Object.entries(state.annotations).map(([pageId, list]) => [
+          pageId,
+          list.map((a) => (a.id === id ? ({ ...a, ...patch } as Annotation) : a)),
+        ]),
+      ),
+    })),
+
+  removeAnnotation: (id) =>
+    set((state) => ({
+      annotations: Object.fromEntries(
+        Object.entries(state.annotations).map(([pageId, list]) => [
+          pageId,
+          list.filter((a) => a.id !== id),
+        ]),
+      ),
+      selectedAnnoId: state.selectedAnnoId === id ? null : state.selectedAnnoId,
+    })),
+
+  selectAnnotation: (id) => set({ selectedAnnoId: id }),
+
+  clearAnnotationsForPage: (pageId) =>
+    set((state) => {
+      const next = { ...state.annotations };
+      delete next[pageId];
+      return { annotations: next };
+    }),
+
+  clearAllAnnotations: () => set({ annotations: {}, selectedAnnoId: null }),
 
   loadDocument: async (path, fileName) => {
     try {

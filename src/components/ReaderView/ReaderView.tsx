@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import { renderPageToCanvas } from '../../lib/pdfRenderer';
+import { AnnotationLayer } from '../AnnotationLayer/AnnotationLayer';
 import type { Page } from '../../types/pdf';
 import './ReaderView.css';
 
@@ -16,6 +17,7 @@ export function ReaderView() {
     (p) => p.sourceDocId === activeDocId,
   );
   const zoom = useEditorStore((s) => s.zoom);
+  const mode = useEditorStore((s) => s.mode);
   const setCurrentPageIndex = useEditorStore((s) => s.setCurrentPageIndex);
 
   return (
@@ -29,6 +31,7 @@ export function ReaderView() {
               index={idx}
               docId={activeDocId}
               zoom={zoom}
+              mode={mode}
               onVisible={setCurrentPageIndex}
             />
           ))}
@@ -45,10 +48,11 @@ interface ReaderPageProps {
   index: number;
   docId: string;
   zoom: number;
+  mode: string;
   onVisible: (index: number) => void;
 }
 
-function ReaderPage({ page, index, docId, zoom, onVisible }: ReaderPageProps) {
+function ReaderPage({ page, index, docId, zoom, mode, onVisible }: ReaderPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [rendered, setRendered] = useState(false);
@@ -114,6 +118,15 @@ function ReaderPage({ page, index, docId, zoom, onVisible }: ReaderPageProps) {
       <canvas ref={canvasRef} style={{ width: displayWidth, height: displayHeight }} />
       {!rendered && <div className="reader-page-placeholder">第 {index + 1} 页</div>}
       <div className="reader-page-label">{index + 1}</div>
+      {mode === 'content' && (
+        <AnnotationLayer
+          page={page}
+          index={index}
+          docId={docId}
+          displayWidth={displayWidth}
+          displayHeight={displayHeight}
+        />
+      )}
     </div>
   );
 }

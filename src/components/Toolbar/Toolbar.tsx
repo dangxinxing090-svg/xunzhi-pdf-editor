@@ -72,10 +72,34 @@ function ReadToolbar() {
 function ContentToolbar() {
   const zoom = useEditorStore((s) => s.zoom);
   const setZoom = useEditorStore((s) => s.setZoom);
+  const activeTool = useEditorStore((s) => s.activeTool);
+  const setActiveTool = useEditorStore((s) => s.setActiveTool);
+
+  const tools: Array<{ tool: typeof activeTool; label: string }> = [
+    { tool: 'select', label: '选择' },
+    { tool: 'rect', label: '矩形框' },
+    { tool: 'ellipse', label: '圆形框' },
+    { tool: 'highlight', label: '高亮' },
+    { tool: 'text', label: '文本批注' },
+    { tool: 'image', label: '插入图片' },
+  ];
+
   return (
     <>
-      <span className="tool-placeholder">标注 / 页眉 / 页脚 / 裁剪 / 插入图片 / 水印（阶段2-3 实现）</span>
+      <div className="tool-group">
+        {tools.map((t) => (
+          <button
+            key={t.tool}
+            className={activeTool === t.tool ? 'active' : ''}
+            onClick={() => setActiveTool(t.tool)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
       <span className="divider" />
+      <span className="tool-placeholder">水印/页眉/页脚/裁剪/应用(阶段3-4)</span>
+      <span className="spacer" />
       <button onClick={() => setZoom(zoom - 0.1)} disabled={zoom <= 0.25}>−</button>
       <span className="zoom-display">{Math.round(zoom * 100)}%</span>
       <button onClick={() => setZoom(zoom + 0.1)} disabled={zoom >= 4}>+</button>
