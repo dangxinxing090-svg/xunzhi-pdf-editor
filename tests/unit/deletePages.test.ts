@@ -46,4 +46,15 @@ describe('deletePages', () => {
     useEditorStore.getState().undo();
     expect(useEditorStore.getState().pages[0].deleted).toBe(false);
   });
+
+  it('redo re-applies delete after undo', () => {
+    seedPages(['a', 'b']);
+    useEditorStore.getState().deletePages(['a']);
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().pages[0].deleted).toBe(false);
+    useEditorStore.getState().redo();
+    expect(useEditorStore.getState().pages.find((p) => p.id === 'a')!.deleted).toBe(true);
+    expect(useEditorStore.getState().future.length).toBe(0);
+    expect(useEditorStore.getState().past.length).toBe(1);
+  });
 });

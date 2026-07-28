@@ -52,4 +52,15 @@ describe('rotatePages', () => {
     useEditorStore.getState().rotatePages(['a'], 90);
     expect(useEditorStore.getState().past.length).toBe(1);
   });
+
+  it('redo re-applies rotation after undo', () => {
+    seedPages(['a']);
+    useEditorStore.getState().rotatePages(['a'], 90);
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().pages[0].rotation).toBe(0);
+    useEditorStore.getState().redo();
+    expect(useEditorStore.getState().pages[0].rotation).toBe(90);
+    expect(useEditorStore.getState().future.length).toBe(0);
+    expect(useEditorStore.getState().past.length).toBe(1);
+  });
 });

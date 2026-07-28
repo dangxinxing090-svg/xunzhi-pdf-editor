@@ -5,6 +5,7 @@ import { PageCard } from './PageCard';
 
 export function PageGrid() {
   const pages = useEditorStore((s) => s.pages);
+  const selection = useEditorStore((s) => s.selection);
   const movePages = useEditorStore((s) => s.movePages);
 
   if (pages.length === 0) {
@@ -20,7 +21,12 @@ export function PageGrid() {
     if (!over || active.id === over.id) return;
     const toIndex = pages.findIndex((p) => p.id === over.id);
     if (toIndex === -1) return;
-    movePages([String(active.id)], toIndex);
+    // 拖动选中项时移动整组;否则只移动被拖的单页。
+    const activeId = String(active.id);
+    const movingIds = selection.has(activeId) && selection.size > 1
+      ? [...selection]
+      : [activeId];
+    movePages(movingIds, toIndex);
   };
 
   return (

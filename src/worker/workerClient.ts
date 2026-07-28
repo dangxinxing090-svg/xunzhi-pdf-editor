@@ -49,8 +49,8 @@ export const workerClient = {
       { docId, buffer },
       [buffer],
     ),
-  renderThumb: (docId: string, pageIndex: number, rotation: 0 | 90 | 180 | 270) =>
-    request<ImageBitmap>('renderThumb', { docId, pageIndex, rotation }),
+  renderThumb: (docId: string, pageIndex: number) =>
+    request<ImageBitmap>('renderThumb', { docId, pageIndex }),
   exportPdf: (
     pages: Array<{ sourceDocId: string; sourcePageIndex: number; rotation: 0 | 90 | 180 | 270 }>,
   ) => request<ArrayBuffer>('exportPdf', { pages }),

@@ -26,7 +26,7 @@ export function PageCard({ page, index }: Props) {
     }
     let cancelled = false;
     workerClient
-      .renderThumb(page.sourceDocId, page.sourcePageIndex, page.rotation)
+      .renderThumb(page.sourceDocId, page.sourcePageIndex)
       .then((bitmap) => {
         if (cancelled) return;
         setPageThumbnail(page.id, bitmap);

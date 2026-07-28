@@ -1,16 +1,18 @@
 import { loadPdfFromBuffer, extractPageMeta, buildExportPdf } from './pdfEngine';
-import { loadPdfForRender, renderThumb } from './thumbRenderer';
+import { loadPdfForRender } from './thumbRenderer';
 import type { WorkerRequest, WorkerResponse } from './protocol';
 
 const docs = new Map<string, import('pdf-lib').PDFDocument>();
-const thumbCache = new Map<string, ImageBitmap>();
+// 缓存已渲染的 OffscreenCanvas(按 docId:pageIndex),不随 transfer 失效。
+// 每次请求从此 canvas 生成新的 ImageBitmap 用于 transfer。
+const canvasCache = new Map<string, OffscreenCanvas>();
 
 function respond(msg: WorkerResponse, transfer?: Transferable[]): void {
   (self as unknown as Worker).postMessage(msg, transfer ?? []);
 }
 
-function thumbKey(docId: string, pageIndex: number, rotation: number): string {
-  return `${docId}:${pageIndex}:${rotation}`;
+function cacheKey(docId: string, pageIndex: number): string {
+  return `${docId}:${pageIndex}`;
 }
 
 async function handleRequest(req: WorkerRequest): Promise<void> {
@@ -26,17 +28,20 @@ async function handleRequest(req: WorkerRequest): Promise<void> {
         break;
       }
       case 'renderThumb': {
-        const { docId, pageIndex, rotation } = req.payload as {
+        const { docId, pageIndex } = req.payload as {
           docId: string;
           pageIndex: number;
-          rotation: 0 | 90 | 180 | 270;
         };
-        const key = thumbKey(docId, pageIndex, rotation);
-        let bitmap = thumbCache.get(key);
-        if (!bitmap) {
-          bitmap = await renderThumb(docId, pageIndex, rotation);
-          thumbCache.set(key, bitmap);
+        const key = cacheKey(docId, pageIndex);
+        let canvas = canvasCache.get(key);
+        if (!canvas) {
+          // renderThumb 现在渲染原始方向位图(无 rotation),由渲染进程统一旋转。
+          const { renderToCanvas } = await import('./thumbRenderer');
+          canvas = await renderToCanvas(docId, pageIndex);
+          canvasCache.set(key, canvas);
         }
+        // 从缓存 canvas 生成新的 ImageBitmap(transfer 不会消耗 canvas)。
+        const bitmap = await createImageBitmap(canvas);
         respond({ id: req.id, ok: true, data: bitmap }, [bitmap]);
         break;
       }

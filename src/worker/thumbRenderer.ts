@@ -21,19 +21,23 @@ export async function loadPdfForRender(
   return doc;
 }
 
-export async function renderThumb(
+/**
+ * 渲染页面到 OffscreenCanvas(原始方向,不应用 rotation)。
+ * 返回的 canvas 可被缓存并复用;调用方通过 createImageBitmap 从中生成可 transfer 的 ImageBitmap。
+ * 旋转由渲染进程统一处理,使同一页的不同旋转角度共享同一份缓存。
+ */
+export async function renderToCanvas(
   docId: string,
   pageIndex: number,
-  rotation: 0 | 90 | 180 | 270,
   maxWidth: number = 200,
-): Promise<ImageBitmap> {
+): Promise<OffscreenCanvas> {
   const doc = docCache.get(docId);
   if (!doc) throw new Error(`Document not loaded for render: ${docId}`);
 
   const page = await doc.getPage(pageIndex + 1); // pdf.js 用 1-based
   const viewport = page.getViewport({ scale: 1 });
   const scale = maxWidth / viewport.width;
-  const scaledViewport = page.getViewport({ scale, rotation });
+  const scaledViewport = page.getViewport({ scale });
 
   const canvas = new OffscreenCanvas(scaledViewport.width, scaledViewport.height);
   const ctx = canvas.getContext('2d')!;
@@ -46,14 +50,14 @@ export async function renderThumb(
     viewport: scaledViewport,
   }).promise;
 
-  return canvas.transferToImageBitmap();
+  return canvas;
 }
 
 export function disposeDoc(docId: string): void {
   const doc = docCache.get(docId);
   if (doc) {
     // pdf.js v6: destroy() 在 loadingTask 上,返回 Promise<void>(此处 fire-and-forget)
-    doc.loadingTask.destroy();
+    void doc.loadingTask.destroy();
     docCache.delete(docId);
   }
 }

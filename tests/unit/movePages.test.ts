@@ -42,4 +42,17 @@ describe('movePages', () => {
     expect(useEditorStore.getState().past.length).toBe(1);
     expect(useEditorStore.getState().future.length).toBe(0);
   });
+
+  it('redo re-applies move after undo', () => {
+    seedPages(['a', 'b', 'c', 'd']);
+    useEditorStore.getState().movePages(['a'], 3);
+    // after move: [b, c, d, a]
+    expect(useEditorStore.getState().pages.map((p) => p.id)).toEqual(['b', 'c', 'd', 'a']);
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().pages.map((p) => p.id)).toEqual(['a', 'b', 'c', 'd']);
+    useEditorStore.getState().redo();
+    expect(useEditorStore.getState().pages.map((p) => p.id)).toEqual(['b', 'c', 'd', 'a']);
+    expect(useEditorStore.getState().future.length).toBe(0);
+    expect(useEditorStore.getState().past.length).toBe(1);
+  });
 });
