@@ -1,9 +1,14 @@
-export type WorkerRequestType = 'loadDoc' | 'renderThumb' | 'exportPdf' | 'disposeDoc';
+export type WorkerRequestType = 'loadDoc' | 'renderThumb' | 'exportPdf' | 'disposeDoc' | 'createDocFromPages';
 
 export interface WorkerRequest {
   id: string;
   type: WorkerRequestType;
-  payload: LoadDocPayload | RenderThumbPayload | ExportPdfPayload | DisposeDocPayload;
+  payload:
+    | LoadDocPayload
+    | RenderThumbPayload
+    | ExportPdfPayload
+    | DisposeDocPayload
+    | CreateDocFromPagesPayload;
 }
 
 export interface LoadDocPayload {
@@ -27,6 +32,16 @@ export interface ExportPdfPayload {
 
 export interface DisposeDocPayload {
   docId: string;
+}
+
+/** 构建合成文档的单页规格:引用已有源页 或 空白页。 */
+export type PageSpec =
+  | { sourceDocId: string; sourcePageIndex: number; rotation: 0 | 90 | 180 | 270 }
+  | { blank: true; width: number; height: number };
+
+export interface CreateDocFromPagesPayload {
+  targetDocId: string;
+  pages: PageSpec[];
 }
 
 export interface WorkerResponse {

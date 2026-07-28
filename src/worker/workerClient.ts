@@ -1,4 +1,4 @@
-import type { WorkerRequest, WorkerResponse } from './protocol';
+import type { WorkerRequest, WorkerResponse, PageSpec } from './protocol';
 
 interface Pending {
   resolve: (data: unknown) => void;
@@ -55,4 +55,9 @@ export const workerClient = {
     pages: Array<{ sourceDocId: string; sourcePageIndex: number; rotation: 0 | 90 | 180 | 270 }>,
   ) => request<ArrayBuffer>('exportPdf', { pages }),
   disposeDoc: (docId: string) => request<null>('disposeDoc', { docId }),
+  createDocFromPages: (targetDocId: string, pages: PageSpec[]) =>
+    request<{ pageCount: number; pages: Array<{ width: number; height: number }> }>(
+      'createDocFromPages',
+      { targetDocId, pages },
+    ),
 };

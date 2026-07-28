@@ -1,6 +1,6 @@
-import { loadPdfFromBuffer, extractPageMeta, buildExportPdf } from './pdfEngine';
+import { loadPdfFromBuffer, extractPageMeta, buildExportPdf, buildDocFromPages } from './pdfEngine';
 import { loadPdfForRender, disposeDoc } from './thumbRenderer';
-import type { WorkerRequest, WorkerResponse } from './protocol';
+import type { WorkerRequest, WorkerResponse, PageSpec } from './protocol';
 
 const docs = new Map<string, import('pdf-lib').PDFDocument>();
 // 缓存已渲染的 OffscreenCanvas(按 docId:pageIndex),不随 transfer 失效。
@@ -67,6 +67,21 @@ async function handleRequest(req: WorkerRequest): Promise<void> {
         }
         disposeDoc(docId);
         respond({ id: req.id, ok: true, data: null });
+        break;
+      }
+      case 'createDocFromPages': {
+        const { targetDocId, pages } = req.payload as { targetDocId: string; pages: PageSpec[] };
+        const newPdf = await buildDocFromPages(docs, pages);
+        docs.set(targetDocId, newPdf);
+        // pdf.js 需要独立的文档对象:save 后重新加载
+        const bytes = await newPdf.save();
+        const reloadBuffer = bytes.buffer.slice(
+          bytes.byteOffset,
+          bytes.byteOffset + bytes.byteLength,
+        ) as ArrayBuffer;
+        await loadPdfForRender(targetDocId, reloadBuffer);
+        const meta = extractPageMeta(newPdf);
+        respond({ id: req.id, ok: true, data: meta });
         break;
       }
       default:
