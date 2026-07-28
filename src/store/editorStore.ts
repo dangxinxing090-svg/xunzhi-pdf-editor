@@ -26,9 +26,23 @@ interface EditorState {
   exportPdf: (mode: 'current' | 'selected' | 'all') => Promise<void>;
   closeDocument: (docId: string) => Promise<void>;
   setActiveDoc: (docId: string) => void;
+  insertBlankPage: () => Promise<void>;
+  duplicatePages: (pageIds: string[]) => Promise<void>;
+  splitToNewDocument: (pageIds: string[]) => Promise<void>;
+  saveSelectionAsDoc: (pageIds: string[]) => Promise<void>;
+  mergeAllDocuments: () => Promise<void>;
 }
 
 let docCounter = 0;
+let pageCounter = 0;
+
+function nextDocId(): string {
+  return `doc-${++docCounter}`;
+}
+
+function nextPageId(): string {
+  return `p-${++pageCounter}`;
+}
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   sourceDocs: [],
@@ -44,7 +58,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   loadDocument: async (path, fileName) => {
     try {
       const buffer = await window.electronAPI.readPdf(path);
-      const docId = `doc-${++docCounter}`;
+      const docId = nextDocId();
       const meta = await workerClient.loadDoc(docId, buffer);
 
       const doc: SourceDoc = {
@@ -276,6 +290,32 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       };
       get().rotatePages(pageIds, degrees);
       set((state) => ({ past: state.past.slice(0, -1) }));
+    } else if (cmd.type === 'insert' || cmd.type === 'duplicate') {
+      // insert/duplicate 的 undo 不释放 worker 文档,redo 可同步重新插入。
+      const { newPages, newDocs, insertIndex } = cmd.payload as {
+        newPages: Page[];
+        newDocs: SourceDoc[];
+        insertIndex?: number;
+      };
+      set((state) => {
+        const pages = [...state.pages];
+        const idx = insertIndex ?? pages.length;
+        pages.splice(idx, 0, ...newPages);
+        return { pages, sourceDocs: [...state.sourceDocs, ...newDocs] };
+      });
+    } else if (cmd.type === 'split') {
+      // split 的 redo:重新移动 pages 到拆分文档(undo 已还原回原文档)
+      const { pageIds, toDocId } = cmd.payload as {
+        pageIds: string[];
+        fromDocId: string;
+        toDocId: string;
+      };
+      set((state) => ({
+        pages: state.pages.map((p) =>
+          pageIds.includes(p.id) ? { ...p, sourceDocId: toDocId } : p,
+        ),
+        activeDocId: toDocId,
+      }));
     }
     set({
       past: [...past, cmd],
@@ -362,5 +402,271 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setActiveDoc: (docId) => {
     // 切换文档时清空选择(选择作用于当前文档视图)
     set({ activeDocId: docId, selection: new Set(), lastSelectedId: null });
+  },
+
+  insertBlankPage: async () => {
+    const { pages, selection, activeDocId } = get();
+    // 确定尺寸:选中页的尺寸,或默认 A4
+    let width = 595;
+    let height = 842;
+    let insertIndex = pages.length; // 默认末尾
+    if (selection.size > 0) {
+      const selPage = pages.find((p) => selection.has(p.id));
+      if (selPage) {
+        width = selPage.width;
+        height = selPage.height;
+        insertIndex = pages.indexOf(selPage) + 1;
+      }
+    } else if (activeDocId) {
+      // 无选中:插到当前文档最后一页之后
+      const lastInDoc = [...pages].reverse().find((p) => p.sourceDocId === activeDocId);
+      if (lastInDoc) insertIndex = pages.indexOf(lastInDoc) + 1;
+    }
+
+    const syntheticDocId = nextDocId();
+    const meta = await workerClient.createDocFromPages(syntheticDocId, [
+      { blank: true, width, height },
+    ]);
+
+    const newPage: Page = {
+      id: nextPageId(),
+      sourceDocId: syntheticDocId,
+      sourcePageIndex: 0,
+      rotation: 0,
+      width: meta.pages[0].width,
+      height: meta.pages[0].height,
+      thumbnail: null,
+      deleted: false,
+    };
+    const newDoc: SourceDoc = {
+      id: syntheticDocId,
+      fileName: '空白页',
+      pageCount: 1,
+    };
+
+    const newPages = [...pages];
+    newPages.splice(insertIndex, 0, newPage);
+
+    const undo = () => {
+      // 不 dispose 合成文档:redo 需要重新引用它(避免再次异步调用 worker)。
+      // 文档关闭时会统一释放。
+      set((state) => ({
+        pages: state.pages.filter((p) => p.id !== newPage.id),
+        sourceDocs: state.sourceDocs.filter((d) => d.id !== syntheticDocId),
+      }));
+    };
+
+    set((state) => ({
+      pages: newPages,
+      sourceDocs: [...state.sourceDocs, newDoc],
+      past: [
+        ...state.past,
+        {
+          type: 'insert' as const,
+          payload: { newPages: [newPage], newDocs: [newDoc], insertIndex },
+          undo,
+        },
+      ],
+      future: [],
+    }));
+  },
+
+  duplicatePages: async (pageIds) => {
+    const { pages } = get();
+    // 按在 pages 中的顺序取选中页(保持副本插入顺序)
+    const sourcePages = pages.filter((p) => pageIds.includes(p.id));
+    if (sourcePages.length === 0) return;
+
+    const syntheticDocId = nextDocId();
+    const specs = sourcePages.map((p) => ({
+      sourceDocId: p.sourceDocId,
+      sourcePageIndex: p.sourcePageIndex,
+      rotation: p.rotation,
+    }));
+    const meta = await workerClient.createDocFromPages(syntheticDocId, specs);
+
+    // 为每个选中页生成一个副本 Page,插入到原页之后
+    const newPages: Page[] = [];
+    const resultPages = [...pages];
+    sourcePages.forEach((srcPage, i) => {
+      const dup: Page = {
+        id: nextPageId(),
+        sourceDocId: syntheticDocId,
+        sourcePageIndex: i,
+        rotation: srcPage.rotation,
+        width: meta.pages[i].width,
+        height: meta.pages[i].height,
+        thumbnail: null,
+        deleted: false,
+      };
+      newPages.push(dup);
+      const srcIdx = resultPages.indexOf(srcPage);
+      resultPages.splice(srcIdx + 1, 0, dup);
+    });
+    const newDoc: SourceDoc = {
+      id: syntheticDocId,
+      fileName: '副本',
+      pageCount: newPages.length,
+    };
+
+    const undo = () => {
+      const dupIds = new Set(newPages.map((p) => p.id));
+      set((state) => ({
+        pages: state.pages.filter((p) => !dupIds.has(p.id)),
+        sourceDocs: state.sourceDocs.filter((d) => d.id !== syntheticDocId),
+      }));
+    };
+
+    set((state) => ({
+      pages: resultPages,
+      sourceDocs: [...state.sourceDocs, newDoc],
+      past: [
+        ...state.past,
+        {
+          type: 'duplicate' as const,
+          payload: { newPages, newDocs: [newDoc], insertIndex: undefined },
+          undo,
+        },
+      ],
+      future: [],
+    }));
+  },
+
+  splitToNewDocument: async (pageIds) => {
+    const { pages, sourceDocs, activeDocId } = get();
+    const movingPages = pages.filter((p) => pageIds.includes(p.id) && !p.deleted);
+    if (movingPages.length === 0) return;
+    const fromDocId = activeDocId!;
+
+    const toDocId = nextDocId();
+    const specs = movingPages.map((p) => ({
+      sourceDocId: p.sourceDocId,
+      sourcePageIndex: p.sourcePageIndex,
+      rotation: p.rotation,
+    }));
+    const meta = await workerClient.createDocFromPages(toDocId, specs);
+
+    // 选中页的 sourceDocId 改为新文档,pageIndex 重新编序
+    const newPages = pages.map((p) => {
+      const idx = movingPages.indexOf(p);
+      if (idx === -1) return p;
+      return {
+        ...p,
+        sourceDocId: toDocId,
+        sourcePageIndex: idx,
+        width: meta.pages[idx].width,
+        height: meta.pages[idx].height,
+      };
+    });
+    const newDoc: SourceDoc = {
+      id: toDocId,
+      fileName: `拆分自 ${sourceDocs.find((d) => d.id === fromDocId)?.fileName ?? '文档'}`,
+      pageCount: movingPages.length,
+    };
+
+    const undo = () => {
+      set((state) => ({
+        pages: state.pages.map((p) =>
+          pageIds.includes(p.id) ? { ...p, sourceDocId: fromDocId } : p,
+        ),
+        sourceDocs: state.sourceDocs.filter((d) => d.id !== toDocId),
+        activeDocId: fromDocId,
+      }));
+    };
+
+    set((state) => ({
+      pages: newPages,
+      sourceDocs: [...state.sourceDocs, newDoc],
+      activeDocId: toDocId,
+      selection: new Set(),
+      lastSelectedId: null,
+      past: [
+        ...state.past,
+        {
+          type: 'split' as const,
+          payload: { pageIds, fromDocId, toDocId },
+          undo,
+        },
+      ],
+      future: [],
+    }));
+  },
+
+  saveSelectionAsDoc: async (pageIds) => {
+    const { pages } = get();
+    const sourcePages = pages.filter((p) => pageIds.includes(p.id) && !p.deleted);
+    if (sourcePages.length === 0) return;
+
+    const toDocId = nextDocId();
+    const specs = sourcePages.map((p) => ({
+      sourceDocId: p.sourceDocId,
+      sourcePageIndex: p.sourcePageIndex,
+      rotation: p.rotation,
+    }));
+    const meta = await workerClient.createDocFromPages(toDocId, specs);
+
+    // 复制选中页为新文档的页面(不从原文档移除)
+    const newPages: Page[] = sourcePages.map((src, i) => ({
+      id: nextPageId(),
+      sourceDocId: toDocId,
+      sourcePageIndex: i,
+      rotation: src.rotation,
+      width: meta.pages[i].width,
+      height: meta.pages[i].height,
+      thumbnail: null,
+      deleted: false,
+    }));
+    const newDoc: SourceDoc = {
+      id: toDocId,
+      fileName: `另存 ${sourcePages.length}页`,
+      pageCount: sourcePages.length,
+    };
+
+    set((state) => ({
+      pages: [...state.pages, ...newPages],
+      sourceDocs: [...state.sourceDocs, newDoc],
+      activeDocId: toDocId,
+      selection: new Set(),
+      lastSelectedId: null,
+    }));
+    // 不推入历史(另存为是复制操作,不易撤销;如需可后续补充)
+  },
+
+  mergeAllDocuments: async () => {
+    const { pages, sourceDocs } = get();
+    const allPages = pages.filter((p) => !p.deleted);
+    if (sourceDocs.length < 2 || allPages.length === 0) return;
+
+    const toDocId = nextDocId();
+    const specs = allPages.map((p) => ({
+      sourceDocId: p.sourceDocId,
+      sourcePageIndex: p.sourcePageIndex,
+      rotation: p.rotation,
+    }));
+    const meta = await workerClient.createDocFromPages(toDocId, specs);
+
+    const newPages: Page[] = allPages.map((src, i) => ({
+      id: nextPageId(),
+      sourceDocId: toDocId,
+      sourcePageIndex: i,
+      rotation: src.rotation,
+      width: meta.pages[i].width,
+      height: meta.pages[i].height,
+      thumbnail: null,
+      deleted: false,
+    }));
+    const newDoc: SourceDoc = {
+      id: toDocId,
+      fileName: '合并文档',
+      pageCount: allPages.length,
+    };
+
+    set((state) => ({
+      pages: [...state.pages, ...newPages],
+      sourceDocs: [...state.sourceDocs, newDoc],
+      activeDocId: toDocId,
+      selection: new Set(),
+      lastSelectedId: null,
+    }));
   },
 }));

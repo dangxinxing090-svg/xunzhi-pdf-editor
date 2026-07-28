@@ -15,7 +15,7 @@ export interface SourceDoc {
   pageCount: number;
 }
 
-export type CommandType = 'move' | 'delete' | 'rotate' | 'merge';
+export type CommandType = 'move' | 'delete' | 'rotate' | 'merge' | 'insert' | 'duplicate' | 'split';
 
 export interface Command {
   type: CommandType;
