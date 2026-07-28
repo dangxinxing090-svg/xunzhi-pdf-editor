@@ -6,6 +6,7 @@ export function Sidebar() {
   const activeDocId = useEditorStore((s) => s.activeDocId);
   const closeDocument = useEditorStore((s) => s.closeDocument);
   const setActiveDoc = useEditorStore((s) => s.setActiveDoc);
+  const mergeAllDocuments = useEditorStore((s) => s.mergeAllDocuments);
   const [menuDocId, setMenuDocId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -32,10 +33,18 @@ export function Sidebar() {
     void closeDocument(docId);
   };
 
+  const handleMerge = () => {
+    setMenuDocId(null);
+    void mergeAllDocuments();
+  };
+
   return (
     <div className="sidebar">
       <h3>文档</h3>
       {sourceDocs.length === 0 && <p className="empty">未加载文档</p>}
+      {sourceDocs.length >= 2 && (
+        <button className="merge-btn" onClick={handleMerge}>合并所有文档</button>
+      )}
       {sourceDocs.map((doc) => (
         <div
           key={doc.id}
