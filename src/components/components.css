@@ -3,6 +3,18 @@
 .toolbar .divider { width: 1px; height: 20px; background: #ccc; margin: 0 4px; }
 .toolbar button { padding: 6px 12px; cursor: pointer; }
 .toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
+.toolbar .empty-hint { color: #999; font-size: 13px; }
+
+.mode-switcher { display: inline-flex; border: 1px solid #ccc; border-radius: 4px; overflow: hidden; }
+.mode-switcher button { padding: 6px 10px; border: none; background: none; cursor: pointer; font-size: 13px; border-right: 1px solid #ccc; }
+.mode-switcher button:last-child { border-right: none; }
+.mode-switcher button.active { background: #1976d2; color: white; }
+.mode-switcher button:not(.active):hover { background: #e3f2fd; }
+
+.zoom-display { font-size: 13px; color: #555; min-width: 44px; text-align: center; }
+.page-jump { width: 48px; padding: 4px 6px; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; text-align: center; }
+.page-count { font-size: 13px; color: #666; }
+.tool-placeholder { color: #999; font-size: 13px; font-style: italic; }
 
 .sidebar { width: 200px; border-right: 1px solid #ddd; padding: 12px; overflow-y: auto; background: #fafafa; }
 .sidebar h3 { font-size: 13px; color: #666; margin-bottom: 8px; }
@@ -12,7 +24,10 @@
 .doc-item { display: flex; justify-content: space-between; padding: 6px 8px; border-radius: 4px; font-size: 13px; position: relative; cursor: pointer; }
 .doc-item:hover { background: #f0f0f0; }
 .doc-item.active { background: #e3f2fd; }
+.doc-item.selected { background: #fff3e0; box-shadow: inset 0 0 0 1px #ffb74d; }
+.doc-item.active.selected { background: #e3f2fd; box-shadow: inset 0 0 0 2px #1976d2; }
 .doc-count { color: #999; }
+.rename-input { width: 100%; font-size: 13px; padding: 2px 4px; border: 1px solid #1976d2; border-radius: 3px; outline: none; }
 
 .context-menu { position: absolute; top: 100%; left: 0; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 20; min-width: 120px; }
 .context-menu button { display: block; width: 100%; text-align: left; padding: 8px 12px; border: none; background: none; cursor: pointer; font-size: 13px; }
@@ -24,12 +39,20 @@
 .page-card { border: 1px solid #ddd; border-radius: 4px; padding: 8px; text-align: center; background: white; position: relative; cursor: pointer; touch-action: none; }
 .page-card.selected { border-color: #1976d2; box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.3); }
 .page-card.deleted { opacity: 0.4; }
-.page-card canvas { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.page-card .thumb-wrap { transition: transform 0.2s; }
+.page-card .thumb-wrap img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.page-card .thumb-placeholder { min-height: 120px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px; background: #f9f9f9; }
 .page-card .page-number { font-size: 12px; color: #666; }
 
-.inspector-panel { width: 220px; border-left: 1px solid #ddd; padding: 12px; background: #fafafa; }
+.inspector-panel { width: 480px; border-left: 1px solid #ddd; padding: 12px; background: #fafafa; display: flex; flex-direction: column; overflow-y: auto; }
 .inspector-panel h3 { font-size: 13px; color: #666; margin-bottom: 8px; }
 .inspector-panel .empty { color: #999; font-size: 13px; }
+.inspector-panel .page-preview-scroll { border: 1px solid #ddd; border-radius: 4px; margin-bottom: 12px; background: white; }
+.inspector-panel .page-preview-scroll canvas { display: block; width: 100%; height: auto; background: white; }
+.inspector-panel .props-section { border-top: 1px solid #ddd; padding-top: 12px; }
+.inspector-panel .props-section h4 { font-size: 12px; color: #999; margin-bottom: 6px; }
+.inspector-panel .props-section p { font-size: 13px; margin-bottom: 4px; }
+.inspector-panel .props-section button { display: block; width: 100%; padding: 6px; margin-top: 6px; cursor: pointer; }
 
 .status-bar { padding: 4px 16px; border-top: 1px solid #ddd; font-size: 12px; color: #666; background: #f5f5f5; display: flex; gap: 8px; }
 .status-error { color: #d32f2f; }

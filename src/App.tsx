@@ -4,10 +4,12 @@ import { Sidebar } from './components/Sidebar/Sidebar';
 import { PageGrid } from './components/PageGrid/PageGrid';
 import { InspectorPanel } from './components/InspectorPanel/InspectorPanel';
 import { StatusBar } from './components/StatusBar/StatusBar';
+import { ReaderView } from './components/ReaderView/ReaderView';
 import { useEditorStore } from './store/editorStore';
 import './App.css';
 
 export default function App() {
+  const mode = useEditorStore((s) => s.mode);
   const deletePages = useEditorStore((s) => s.deletePages);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
@@ -49,9 +51,15 @@ export default function App() {
     <div className="app">
       <Toolbar />
       <div className="workspace">
-        <Sidebar />
-        <PageGrid />
-        <InspectorPanel />
+        {mode === 'pages' ? (
+          <>
+            <Sidebar />
+            <PageGrid />
+            <InspectorPanel />
+          </>
+        ) : (
+          <ReaderView />
+        )}
       </div>
       <StatusBar />
     </div>

@@ -1,7 +1,89 @@
 import { useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
+import type { EditorMode } from '../../types/pdf';
 
-export function Toolbar() {
+const MODE_BUTTONS: Array<{ mode: EditorMode; label: string }> = [
+  { mode: 'read', label: '阅读' },
+  { mode: 'pages', label: '页面编辑' },
+  { mode: 'content', label: '内容编辑' },
+];
+
+function ModeSwitcher() {
+  const mode = useEditorStore((s) => s.mode);
+  const setMode = useEditorStore((s) => s.setMode);
+  return (
+    <div className="mode-switcher">
+      {MODE_BUTTONS.map((b) => (
+        <button
+          key={b.mode}
+          className={mode === b.mode ? 'active' : ''}
+          onClick={() => setMode(b.mode)}
+        >
+          {b.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ReadToolbar() {
+  const zoom = useEditorStore((s) => s.zoom);
+  const setZoom = useEditorStore((s) => s.setZoom);
+  const currentPageIndex = useEditorStore((s) => s.currentPageIndex);
+  const setCurrentPageIndex = useEditorStore((s) => s.setCurrentPageIndex);
+  const activeDocId = useEditorStore((s) => s.activeDocId);
+  const pageCount = useEditorStore((s) => s.pages).filter(
+    (p) => p.sourceDocId === activeDocId,
+  ).length;
+  const [pageInput, setPageInput] = useState(String(currentPageIndex + 1));
+
+  const handleJump = (val: string) => {
+    const n = parseInt(val, 10);
+    if (!Number.isNaN(n)) {
+      const idx = Math.max(1, Math.min(pageCount, n)) - 1;
+      setCurrentPageIndex(idx);
+      setPageInput(String(idx + 1));
+      const el = document.querySelector(`[data-page-idx="${idx}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      setPageInput(String(currentPageIndex + 1));
+    }
+  };
+
+  return (
+    <>
+      <button onClick={() => setZoom(zoom - 0.1)} disabled={zoom <= 0.25}>−</button>
+      <span className="zoom-display">{Math.round(zoom * 100)}%</span>
+      <button onClick={() => setZoom(zoom + 0.1)} disabled={zoom >= 4}>+</button>
+      <button onClick={() => setZoom(1.0)}>适合宽度</button>
+      <span className="divider" />
+      <input
+        className="page-jump"
+        value={pageInput}
+        onChange={(e) => setPageInput(e.target.value)}
+        onBlur={(e) => handleJump(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && handleJump((e.target as HTMLInputElement).value)}
+      />
+      <span className="page-count">/ {pageCount}</span>
+    </>
+  );
+}
+
+function ContentToolbar() {
+  const zoom = useEditorStore((s) => s.zoom);
+  const setZoom = useEditorStore((s) => s.setZoom);
+  return (
+    <>
+      <span className="tool-placeholder">标注 / 页眉 / 页脚 / 裁剪 / 插入图片 / 水印（阶段2-3 实现）</span>
+      <span className="divider" />
+      <button onClick={() => setZoom(zoom - 0.1)} disabled={zoom <= 0.25}>−</button>
+      <span className="zoom-display">{Math.round(zoom * 100)}%</span>
+      <button onClick={() => setZoom(zoom + 0.1)} disabled={zoom >= 4}>+</button>
+    </>
+  );
+}
+
+function PagesToolbar() {
   const loadDocument = useEditorStore((s) => s.loadDocument);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
@@ -10,14 +92,14 @@ export function Toolbar() {
   const exportPdf = useEditorStore((s) => s.exportPdf);
   const isExporting = useEditorStore((s) => s.isExporting);
   const selection = useEditorStore((s) => s.selection);
-  const sourceDocs = useEditorStore((s) => s.sourceDocs);
+  const selectedDocIds = useEditorStore((s) => s.selectedDocIds);
   const rotatePages = useEditorStore((s) => s.rotatePages);
   const deletePages = useEditorStore((s) => s.deletePages);
   const insertBlankPage = useEditorStore((s) => s.insertBlankPage);
   const duplicatePages = useEditorStore((s) => s.duplicatePages);
   const splitToNewDocument = useEditorStore((s) => s.splitToNewDocument);
   const saveSelectionAsDoc = useEditorStore((s) => s.saveSelectionAsDoc);
-  const mergeAllDocuments = useEditorStore((s) => s.mergeAllDocuments);
+  const mergeDocuments = useEditorStore((s) => s.mergeDocuments);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
   const hasSelection = selection.size > 0;
@@ -37,7 +119,7 @@ export function Toolbar() {
   };
 
   return (
-    <div className="toolbar">
+    <>
       <button onClick={handleOpen}>打开</button>
       <div className="export-menu">
         <button onClick={() => setShowExportMenu(!showExportMenu)} disabled={isExporting}>
@@ -59,10 +141,26 @@ export function Toolbar() {
       <span className="divider" />
       <button onClick={() => void splitToNewDocument(sel)} disabled={!hasSelection}>拆分</button>
       <button onClick={() => void saveSelectionAsDoc(sel)} disabled={!hasSelection}>另存文档</button>
-      <button onClick={() => void mergeAllDocuments()} disabled={sourceDocs.length < 2}>合并文档</button>
+      <button onClick={() => void mergeDocuments([...selectedDocIds])} disabled={selectedDocIds.size < 2}>合并文档{selectedDocIds.size >= 2 ? ` (${selectedDocIds.size})` : ''}</button>
       <span className="spacer" />
       <button onClick={undo} disabled={!canUndo}>↶</button>
       <button onClick={redo} disabled={!canRedo}>↷</button>
+    </>
+  );
+}
+
+export function Toolbar() {
+  const mode = useEditorStore((s) => s.mode);
+  const activeDocId = useEditorStore((s) => s.activeDocId);
+  return (
+    <div className="toolbar">
+      <ModeSwitcher />
+      <span className="divider" />
+      {activeDocId ? (
+        mode === 'read' ? <ReadToolbar /> : mode === 'content' ? <ContentToolbar /> : <PagesToolbar />
+      ) : (
+        <span className="empty-hint">打开 PDF 文档开始</span>
+      )}
     </div>
   );
 }

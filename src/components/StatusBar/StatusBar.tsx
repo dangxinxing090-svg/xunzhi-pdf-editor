@@ -6,6 +6,8 @@ export function StatusBar() {
   const selection = useEditorStore((s) => s.selection);
   const error = useEditorStore((s) => s.error);
   const isExporting = useEditorStore((s) => s.isExporting);
+  const mode = useEditorStore((s) => s.mode);
+  const currentPageIndex = useEditorStore((s) => s.currentPageIndex);
 
   // 只统计当前活跃文档的页面(与中间网格视图一致)
   const pages = allPages.filter((p) => p.sourceDocId === activeDocId);
@@ -13,9 +15,15 @@ export function StatusBar() {
 
   return (
     <div className="status-bar">
-      <span>共 {pages.length} 页</span>
-      <span>· 选中 {selection.size}</span>
-      <span>· 已删除 {deletedCount}</span>
+      {mode === 'pages' ? (
+        <>
+          <span>共 {pages.length} 页</span>
+          <span>· 选中 {selection.size}</span>
+          <span>· 已删除 {deletedCount}</span>
+        </>
+      ) : (
+        <span>{pages.length > 0 ? `第 ${currentPageIndex + 1} 页 / 共 ${pages.length} 页` : '无文档'}</span>
+      )}
       {isExporting && <span className="status-exporting">· 导出中...</span>}
       {error && <span className="status-error">· 错误:{error}</span>}
     </div>
