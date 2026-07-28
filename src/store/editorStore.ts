@@ -20,6 +20,10 @@ interface EditorState {
   selectPage: (pageId: string, ctrl: boolean, shift: boolean) => void;
   clearSelection: () => void;
   movePages: (pageIds: string[], toIndex: number) => void;
+  rotatePages: (pageIds: string[], degrees: 90 | 180 | 270) => void;
+  deletePages: (pageIds: string[]) => void;
+  undo: () => void;
+  redo: () => void;
 }
 
 let docCounter = 0;
@@ -146,5 +150,106 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
       future: [],
     }));
+  },
+
+  rotatePages: (pageIds, degrees) => {
+    const { pages } = get();
+    const targetPages = pages.filter((p) => pageIds.includes(p.id));
+    const oldRotations = new Map(targetPages.map((p) => [p.id, p.rotation]));
+
+    const newPages = pages.map((p) =>
+      pageIds.includes(p.id)
+        ? { ...p, rotation: ((p.rotation + degrees) % 360) as 0 | 90 | 180 | 270 }
+        : p,
+    );
+
+    const undo = () => {
+      set((state) => ({
+        pages: state.pages.map((p) =>
+          oldRotations.has(p.id) ? { ...p, rotation: oldRotations.get(p.id)! } : p,
+        ),
+      }));
+    };
+
+    set((state) => ({
+      pages: newPages,
+      past: [
+        ...state.past,
+        { type: 'rotate' as const, payload: { pageIds, degrees }, undo },
+      ],
+      future: [],
+    }));
+  },
+
+  deletePages: (pageIds) => {
+    const { pages, selection } = get();
+    const oldStates = new Map(
+      pages.filter((p) => pageIds.includes(p.id)).map((p) => [p.id, p.deleted]),
+    );
+
+    const undo = () => {
+      set((state) => ({
+        pages: state.pages.map((p) =>
+          oldStates.has(p.id) ? { ...p, deleted: oldStates.get(p.id)! } : p,
+        ),
+      }));
+    };
+
+    const nextSelection = new Set(selection);
+    pageIds.forEach((id) => nextSelection.delete(id));
+
+    set((state) => ({
+      pages: pages.map((p) => (pageIds.includes(p.id) ? { ...p, deleted: true } : p)),
+      selection: nextSelection,
+      past: [
+        ...state.past,
+        { type: 'delete' as const, payload: { pageIds }, undo },
+      ],
+      future: [],
+    }));
+  },
+
+  undo: () => {
+    const { past, future } = get();
+    if (past.length === 0) return;
+    const cmd = past[past.length - 1];
+    cmd.undo();
+    set({
+      past: past.slice(0, -1),
+      future: [...future, cmd],
+    });
+  },
+
+  redo: () => {
+    const { past, future } = get();
+    if (future.length === 0) return;
+    const cmd = future[future.length - 1];
+    // 重做 = 重新执行原操作。movePages/rotatePages 会 push past,需在调用后移除多余条目。
+    if (cmd.type === 'delete') {
+      const { pageIds } = cmd.payload as { pageIds: string[] };
+      set((state) => ({
+        pages: state.pages.map((p) =>
+          pageIds.includes(p.id) ? { ...p, deleted: true } : p,
+        ),
+      }));
+    } else if (cmd.type === 'move') {
+      const { pageIds, toIndex } = cmd.payload as {
+        pageIds: string[];
+        toIndex: number;
+      };
+      get().movePages(pageIds, toIndex);
+      set((state) => ({ past: state.past.slice(0, -1) }));
+    } else if (cmd.type === 'rotate') {
+      const { pageIds, degrees } = cmd.payload as {
+        pageIds: string[];
+        degrees: 90 | 180 | 270;
+      };
+      get().rotatePages(pageIds, degrees);
+      set((state) => ({ past: state.past.slice(0, -1) }));
+    }
+    set({
+      past: [...past, cmd],
+      future: future.slice(0, -1),
+    });
   },
 }));
