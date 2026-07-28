@@ -1,11 +1,14 @@
 import { useEditorStore } from '../../store/editorStore';
 
 export function StatusBar() {
-  const pages = useEditorStore((s) => s.pages);
+  const allPages = useEditorStore((s) => s.pages);
+  const activeDocId = useEditorStore((s) => s.activeDocId);
   const selection = useEditorStore((s) => s.selection);
   const error = useEditorStore((s) => s.error);
   const isExporting = useEditorStore((s) => s.isExporting);
 
+  // 只统计当前活跃文档的页面(与中间网格视图一致)
+  const pages = allPages.filter((p) => p.sourceDocId === activeDocId);
   const deletedCount = pages.filter((p) => p.deleted).length;
 
   return (

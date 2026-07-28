@@ -25,6 +25,7 @@ interface EditorState {
   redo: () => void;
   exportPdf: (mode: 'current' | 'selected' | 'all') => Promise<void>;
   closeDocument: (docId: string) => Promise<void>;
+  setActiveDoc: (docId: string) => void;
 }
 
 let docCounter = 0;
@@ -105,41 +106,70 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   clearSelection: () => set({ selection: new Set(), lastSelectedId: null }),
 
   movePages: (pageIds, toIndex) => {
-    const { pages } = get();
+    const { pages, activeDocId } = get();
+    // 只在当前活跃文档的页面范围内重排(多文档各自独立)。
+    const docPages = pages.filter((p) => p.sourceDocId === activeDocId);
     const fromIndices = pageIds
-      .map((id) => pages.findIndex((p) => p.id === id))
+      .map((id) => docPages.findIndex((p) => p.id === id))
       .filter((i) => i !== -1)
       .sort((a, b) => a - b);
     if (fromIndices.length === 0) return;
 
-    const movingPages = fromIndices.map((i) => pages[i]);
-    const remaining = pages.filter((p) => !pageIds.includes(p.id));
+    const movingPages = fromIndices.map((i) => docPages[i]);
+    const remainingDocPages = docPages.filter((p) => !pageIds.includes(p.id));
 
-    // toIndex 指向原 pages 中的目标页;将移动块插入到该目标页之后。
-    // 若目标页不存在或自身被移动,则插入末尾。
-    const targetId = pages[toIndex]?.id;
-    let insertAt = remaining.length;
+    // toIndex 指向当前文档视图中的目标页;将移动块插入到该目标页之后。
+    const targetId = docPages[toIndex]?.id;
+    let insertAt = remainingDocPages.length;
     if (targetId) {
-      const targetInRemaining = remaining.findIndex((p) => p.id === targetId);
+      const targetInRemaining = remainingDocPages.findIndex((p) => p.id === targetId);
       if (targetInRemaining !== -1) {
         insertAt = targetInRemaining + 1;
       }
     }
 
-    const newPages = [
-      ...remaining.slice(0, insertAt),
+    const reorderedDocPages = [
+      ...remainingDocPages.slice(0, insertAt),
       ...movingPages,
-      ...remaining.slice(insertAt),
+      ...remainingDocPages.slice(insertAt),
     ];
+
+    // 重建全局 pages:用重排后的文档页面替换原位置,保留其他文档页面不变。
+    const newPages: Page[] = [];
+    let consumed = false;
+    for (const p of pages) {
+      if (p.sourceDocId === activeDocId) {
+        if (!consumed) {
+          newPages.push(...reorderedDocPages);
+          consumed = true;
+        }
+        // 跳过原来的该文档页面(已被 reorderedDocPages 替换)
+      } else {
+        newPages.push(p);
+      }
+    }
 
     const fromStart = fromIndices[0];
     const undo = () => {
-      const currentPages = get().pages;
-      const movingBack = newPages.filter((p) => pageIds.includes(p.id));
-      const stayingBack = currentPages.filter((p) => !pageIds.includes(p.id));
-      const result = [...stayingBack];
-      result.splice(fromStart, 0, ...movingBack);
-      set({ pages: result });
+      const currentDocPages = get().pages.filter((p) => p.sourceDocId === activeDocId);
+      const movingBack = reorderedDocPages.filter((p) => pageIds.includes(p.id));
+      const stayingBack = currentDocPages.filter((p) => !pageIds.includes(p.id));
+      const resultDocPages = [...stayingBack];
+      resultDocPages.splice(fromStart, 0, ...movingBack);
+
+      const undonePages: Page[] = [];
+      let undoneConsumed = false;
+      for (const p of get().pages) {
+        if (p.sourceDocId === activeDocId) {
+          if (!undoneConsumed) {
+            undonePages.push(...resultDocPages);
+            undoneConsumed = true;
+          }
+        } else {
+          undonePages.push(p);
+        }
+      }
+      set({ pages: undonePages });
     };
 
     set((state) => ({
@@ -327,5 +357,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     } catch {
       // 文档可能从未成功加载,忽略释放错误
     }
+  },
+
+  setActiveDoc: (docId) => {
+    // 切换文档时清空选择(选择作用于当前文档视图)
+    set({ activeDocId: docId, selection: new Set(), lastSelectedId: null });
   },
 }));

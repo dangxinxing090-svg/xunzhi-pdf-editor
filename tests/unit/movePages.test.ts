@@ -18,7 +18,7 @@ function seedPages(ids: string[]): void {
 
 describe('movePages', () => {
   beforeEach(() => {
-    useEditorStore.setState({ pages: [], past: [], future: [] });
+    useEditorStore.setState({ pages: [], past: [], future: [], activeDocId: 'doc1' });
   });
 
   it('moves a single page to a new index', () => {

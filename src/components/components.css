@@ -6,7 +6,8 @@
 .sidebar { width: 200px; border-right: 1px solid #ddd; padding: 12px; overflow-y: auto; background: #fafafa; }
 .sidebar h3 { font-size: 13px; color: #666; margin-bottom: 8px; }
 .sidebar .empty { color: #999; font-size: 13px; }
-.doc-item { display: flex; justify-content: space-between; padding: 6px 8px; border-radius: 4px; font-size: 13px; position: relative; }
+.doc-item { display: flex; justify-content: space-between; padding: 6px 8px; border-radius: 4px; font-size: 13px; position: relative; cursor: pointer; }
+.doc-item:hover { background: #f0f0f0; }
 .doc-item.active { background: #e3f2fd; }
 .doc-count { color: #999; }
 

@@ -5,6 +5,7 @@ export function Sidebar() {
   const sourceDocs = useEditorStore((s) => s.sourceDocs);
   const activeDocId = useEditorStore((s) => s.activeDocId);
   const closeDocument = useEditorStore((s) => s.closeDocument);
+  const setActiveDoc = useEditorStore((s) => s.setActiveDoc);
   const [menuDocId, setMenuDocId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -39,6 +40,7 @@ export function Sidebar() {
         <div
           key={doc.id}
           className={`doc-item ${doc.id === activeDocId ? 'active' : ''}`}
+          onClick={() => setActiveDoc(doc.id)}
           onContextMenu={(e) => handleContextMenu(e, doc.id)}
         >
           <span className="doc-name">{doc.fileName}</span>

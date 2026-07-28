@@ -4,14 +4,18 @@ import { useEditorStore } from '../../store/editorStore';
 import { PageCard } from './PageCard';
 
 export function PageGrid() {
-  const pages = useEditorStore((s) => s.pages);
+  const allPages = useEditorStore((s) => s.pages);
+  const activeDocId = useEditorStore((s) => s.activeDocId);
   const selection = useEditorStore((s) => s.selection);
   const movePages = useEditorStore((s) => s.movePages);
+
+  // 只显示当前活跃文档的页面(多文档各自独立,点击左侧文档切换)
+  const pages = allPages.filter((p) => p.sourceDocId === activeDocId);
 
   if (pages.length === 0) {
     return (
       <div className="page-grid empty">
-        <p>点击"打开"加载 PDF 文件</p>
+        <p>{activeDocId ? '该文档没有页面' : '点击"打开"加载 PDF 文件'}</p>
       </div>
     );
   }
