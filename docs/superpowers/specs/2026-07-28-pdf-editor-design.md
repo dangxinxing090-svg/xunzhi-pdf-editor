@@ -56,7 +56,7 @@
           │                                    │
 ┌─────────▼────────────────┐  ┌────────────────▼──────┐
 │   主进程 (Node.js)       │  │   Web Worker           │
-│   (pdf.js + pdf-lib)     │  │                        │
+│                          │  │   (pdf.js + pdf-lib)   │
 │                          │  │   耗时操作:           │
 │   仅负责:               │  │   - 渲染缩略图         │
 │   - 文件对话框           │  │     (OffscreenCanvas   │
@@ -121,7 +121,7 @@ interface SourceDoc {
 
 // 撤销/重做的命令对象
 interface Command {
-  type: 'move' | 'delete' | 'restore' | 'rotate' | 'merge';
+  type: 'move' | 'delete' | 'rotate' | 'merge';
   payload: any;
   undo(): void;            // 撤销时执行
 }
@@ -199,7 +199,7 @@ Zustand store (动作层)
 ```typescript
 interface WorkerRequest {
   id: string;              // 请求 ID,关联响应
-  type: 'renderThumb' | 'operatePdf' | 'exportPdf' | 'mergeDocs' | 'loadDoc';
+  type: 'loadDoc' | 'renderThumb' | 'exportPdf';
   payload: any;
 }
 
