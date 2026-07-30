@@ -8,6 +8,7 @@ const api = {
     ipcRenderer.invoke('fs:writePdf', path, buffer),
   renameFile: (oldPath: string, newPath: string) =>
     ipcRenderer.invoke('fs:renameFile', oldPath, newPath),
+  openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

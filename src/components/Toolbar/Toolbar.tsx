@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useEditorStore } from '../../store/editorStore';
 import type { EditorMode } from '../../types/pdf';
 import { ContentForms, openDialog } from '../AnnotationLayer/ContentForms';
+import { SettingsPanel, openSettings } from '../SettingsPanel/SettingsPanel';
 
 const MODE_BUTTONS: Array<{ mode: EditorMode; label: string }> = [
   { mode: 'read', label: '阅读' },
@@ -250,6 +251,11 @@ export function Toolbar() {
           {mode === 'read' ? <ReadToolbar /> : mode === 'content' ? <ContentToolbar /> : <PagesToolbar />}
         </>
       )}
+      <span className="spacer" />
+      {mode !== 'content' && (
+        <button className="settings-btn" onClick={openSettings} title="设置">设置</button>
+      )}
+      <SettingsPanel />
     </div>
   );
 }

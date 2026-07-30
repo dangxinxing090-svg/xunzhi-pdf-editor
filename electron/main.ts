@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import { registerDialogHandlers } from './ipc/dialog.js';
 import { registerFsHandlers } from './ipc/fs.js';
+import { registerShellHandlers } from './ipc/shell.js';
 
 // CommonJS provides __dirname natively in Electron main process
 declare const __dirname: string;
@@ -28,6 +29,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   registerDialogHandlers();
   registerFsHandlers();
+  registerShellHandlers();
   createWindow();
 
   app.on('activate', () => {

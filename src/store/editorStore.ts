@@ -22,11 +22,13 @@ interface EditorState {
   annotations: Record<string, Annotation[]>; // pageId -> annotations
   selectedAnnoId: string | null;
   dirtyDocs: Set<string>; // 有未保存编辑的文档 id(关闭时提醒)
+  hideAd: boolean; // 是否隐藏底部广告条(用户可在设置中关闭,但不能删除词条)
 
   setMode: (mode: EditorMode) => void;
   setZoom: (zoom: number) => void;
   setCurrentPageIndex: (index: number) => void;
   setActiveTool: (tool: ContentTool) => void;
+  setHideAd: (hide: boolean) => void;
   addAnnotation: (anno: Annotation) => void;
   /** 圈取"复制":把 marquee 标注范围的 PDF 渲染成图片,立即在原框右侧生成图片标注副本。 */
   copyAnnoAsImage: (annoId: string) => Promise<void>;
@@ -138,11 +140,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   annotations: {},
   selectedAnnoId: null,
   dirtyDocs: new Set(),
+  hideAd: typeof localStorage !== 'undefined' && localStorage.getItem('hideAd') === 'true',
 
   setMode: (mode) => set({ mode, activeTool: 'select', selectedAnnoId: null }),
   setZoom: (zoom) => set({ zoom: Math.max(0.25, Math.min(4, zoom)) }),
   setCurrentPageIndex: (index) => set({ currentPageIndex: index }),
   setActiveTool: (tool) => set({ activeTool: tool, selectedAnnoId: null }),
+  setHideAd: (hide) => {
+    if (typeof localStorage !== 'undefined') localStorage.setItem('hideAd', String(hide));
+    set({ hideAd: hide });
+  },
 
   addAnnotation: (anno) => {
     const prev = { annotations: get().annotations, selectedAnnoId: get().selectedAnnoId };

@@ -87,6 +87,26 @@
 .inspector-panel .props-section p { font-size: 13px; margin-bottom: 4px; }
 .inspector-panel .props-section button { display: block; width: 100%; padding: 6px; margin-top: 6px; cursor: pointer; }
 
-.status-bar { padding: 4px 16px; border-top: 1px solid #ddd; font-size: 12px; color: #666; background: #f5f5f5; display: flex; gap: 8px; }
+.status-bar { padding: 4px 16px; border-top: 1px solid #ddd; font-size: 12px; color: #666; background: #f5f5f5; display: flex; gap: 8px; align-items: center; }
 .status-error { color: #d32f2f; }
 .status-exporting { color: #1976d2; }
+.status-left { flex: 1; }
+.status-center { display: flex; gap: 8px; justify-content: center; }
+
+/* 底部广告(状态栏右侧) */
+.status-bar .status-ad { flex: 1; display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+.ad-text { color: #999; }
+.ad-url { color: #1976d2; cursor: pointer; user-select: none; }
+.ad-url:hover { text-decoration: underline; }
+
+/* 工具栏设置按钮 */
+.toolbar .settings-btn { margin-left: 8px; }
+
+/* 设置面板 */
+.settings-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: flex; align-items: center; justify-content: center; }
+.settings-panel { background: white; padding: 16px 20px; border-radius: 6px; min-width: 320px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.settings-title { margin-bottom: 12px; font-size: 15px; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: 13px; color: #555; }
+.settings-label { font-size: 13px; }
+.settings-checkbox { width: 18px; height: 18px; cursor: pointer; }
+.settings-close-btn { display: block; width: 100%; padding: 6px; margin-top: 12px; cursor: pointer; border-radius: 6px; border: 1px solid #cfd8dc; background: #fff; }
