@@ -48,11 +48,15 @@ export async function renderPageToDataURL(
   // rotation 参数为绝对旋转(含 PDF 内嵌旋转);getViewport 返回旋转后尺寸
   const scaledViewport = page.getViewport({ scale, rotation });
 
+  // HiDPI/Retina 适配:位图后备存储按 devicePixelRatio 放大,缩略图更清晰。
+  const outputScale = window.devicePixelRatio || 1;
   const canvas = document.createElement('canvas');
-  canvas.width = scaledViewport.width;
-  canvas.height = scaledViewport.height;
+  canvas.width = Math.floor(scaledViewport.width * outputScale);
+  canvas.height = Math.floor(scaledViewport.height * outputScale);
   const ctx = canvas.getContext('2d')!;
-  await page.render({ canvas, canvasContext: ctx, viewport: scaledViewport }).promise;
+  const transform =
+    outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
+  await page.render({ canvas, canvasContext: ctx, viewport: scaledViewport, transform }).promise;
   return canvas.toDataURL('image/png');
 }
 
@@ -83,10 +87,16 @@ export async function renderPageToCanvas(
   // rotation 参数为绝对旋转(含 PDF 内嵌旋转);getViewport 返回旋转后尺寸
   const scaledViewport = page.getViewport({ scale, rotation });
 
-  canvas.width = scaledViewport.width;
-  canvas.height = scaledViewport.height;
+  // HiDPI/Retina 适配:位图后备存储按 devicePixelRatio 放大,
+  // CSS 显示尺寸由调用方通过 style.width/height(CSS 像素)控制,保持不变。
+  // 成熟 PDF 阅读器均采用此模式,避免位图被浏览器放大导致模糊。
+  const outputScale = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(scaledViewport.width * outputScale);
+  canvas.height = Math.floor(scaledViewport.height * outputScale);
   const ctx = canvas.getContext('2d')!;
-  await page.render({ canvas, canvasContext: ctx, viewport: scaledViewport }).promise;
+  const transform =
+    outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
+  await page.render({ canvas, canvasContext: ctx, viewport: scaledViewport, transform }).promise;
 }
 
 /**
