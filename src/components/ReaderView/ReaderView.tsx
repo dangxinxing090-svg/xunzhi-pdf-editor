@@ -10,6 +10,9 @@ const BASE_WIDTH = 800; // 基准渲染宽度(px),缩放以此为基准
 /**
  * 阅读视图:连续垂直滚动显示当前文档所有页,IntersectionObserver 懒渲染,
  * 离屏页释放 canvas 内容以控制内存。支持缩放与页码跳转。
+ *
+ * 当前页判定:由 ReaderView 层级的共享 observer 监听所有页面 wrapper,
+ * 取可见面积最大的页面作为当前页(而非旧的中线规则)。
  */
 export function ReaderView() {
   const activeDocId = useEditorStore((s) => s.activeDocId);
@@ -19,11 +22,61 @@ export function ReaderView() {
   const zoom = useEditorStore((s) => s.zoom);
   const mode = useEditorStore((s) => s.mode);
   const setCurrentPageIndex = useEditorStore((s) => s.setCurrentPageIndex);
+  const renderVersion = useEditorStore((s) => s.renderVersion);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 共享 observer:监听所有页面 wrapper,取可见面积最大者为当前页。
+  // 旧方案每个 ReaderPage 各自判定(中线规则),页面较短时顶部以下页面永远无法成为当前页,
+  // 导致 currentPageIndex 卡在第 1/2 页,水印/页眉/页脚"添加到当前页"落到错误页。
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root || pages.length === 0) return;
+    // idx->wrapper 映射,供回调查阅
+    const wraps = Array.from(root.querySelectorAll<HTMLElement>('[data-page-idx]'));
+    const idxByEl = new Map<Element, number>();
+    wraps.forEach((el) => {
+      const idx = Number(el.dataset.pageIdx);
+      if (!Number.isNaN(idx)) idxByEl.set(el, idx);
+    });
+
+    let raf = 0;
+    const pickCurrent = () => {
+      raf = 0;
+      let bestIdx = -1;
+      let bestArea = 0;
+      idxByEl.forEach((idx, el) => {
+        const r = el.getBoundingClientRect();
+        const vh = window.innerHeight;
+        const visibleH = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
+        const area = visibleH * r.width;
+        if (area > bestArea) {
+          bestArea = area;
+          bestIdx = idx;
+        }
+      });
+      if (bestIdx >= 0) setCurrentPageIndex(bestIdx);
+    };
+
+    const observer = new IntersectionObserver(
+      () => {
+        if (raf) return;
+        raf = requestAnimationFrame(pickCurrent);
+      },
+      { root, threshold: [0, 0.25, 0.5, 0.75, 1] },
+    );
+    idxByEl.forEach((_, el) => observer.observe(el));
+    // 初始判定一次(刚加载时 observer 不一定立即触发)
+    pickCurrent();
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      observer.disconnect();
+    };
+  }, [pages, setCurrentPageIndex]);
 
   return (
     <div className="reader-view">
       {activeDocId ? (
-        <div className="reader-scroll">
+        <div className="reader-scroll" ref={scrollRef}>
           {pages.map((page, idx) => (
             <ReaderPage
               key={page.id}
@@ -32,7 +85,7 @@ export function ReaderView() {
               docId={activeDocId}
               zoom={zoom}
               mode={mode}
-              onVisible={setCurrentPageIndex}
+              renderVersion={renderVersion}
             />
           ))}
         </div>
@@ -49,10 +102,10 @@ interface ReaderPageProps {
   docId: string;
   zoom: number;
   mode: string;
-  onVisible: (index: number) => void;
+  renderVersion: number;
 }
 
-function ReaderPage({ page, index, docId, zoom, mode, onVisible }: ReaderPageProps) {
+function ReaderPage({ page, index, docId, zoom, mode, renderVersion }: ReaderPageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [rendered, setRendered] = useState(false);
@@ -69,13 +122,15 @@ function ReaderPage({ page, index, docId, zoom, mode, onVisible }: ReaderPagePro
     const canvas = canvasRef.current;
     if (!canvas) return;
     try {
+      // 传未旋转方向宽度(BASE_WIDTH*zoom),renderPageToCanvas 内部用 rotation 参数渲染旋转后尺寸
       await renderPageToCanvas(canvas, docId, page.sourcePageIndex, targetWidth, page.rotation);
       setRendered(true);
     } catch (err) {
       console.error('ReaderPage render failed:', err);
     }
-  }, [docId, page.sourcePageIndex, page.rotation, targetWidth]);
+  }, [docId, page.sourcePageIndex, page.rotation, targetWidth, renderVersion]);
 
+  // 仅负责懒渲染与离屏释放,不再负责当前页判定(已提升到 ReaderView 共享 observer)
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
@@ -85,14 +140,6 @@ function ReaderPage({ page, index, docId, zoom, mode, onVisible }: ReaderPagePro
         for (const entry of entries) {
           if (entry.isIntersecting) {
             void render();
-            // 仅当页面真正进入视口且顶部在视口中线以上时,才更新当前页码。
-            // 预渲染边距(200px)会让下一页提前触发 isIntersecting,若此时就更新
-            // 当前页会错判成下一页;用中线判定避免提前翻页。
-            const r = entry.boundingClientRect;
-            const vh = window.innerHeight;
-            if (r.top < vh / 2 && r.bottom > 0) {
-              onVisible(index);
-            }
           } else if (rendered) {
             // 离屏释放:清空 canvas 内容以控内存
             const canvas = canvasRef.current;
@@ -108,12 +155,12 @@ function ReaderPage({ page, index, docId, zoom, mode, onVisible }: ReaderPagePro
     );
     observer.observe(wrap);
     return () => observer.disconnect();
-  }, [render, rendered, index, onVisible]);
+  }, [render, rendered]);
 
-  // 缩放变化时重新渲染可见页
+  // 缩放变化或 applyAnnotations 后(renderVersion 变化)重新渲染可见页
   useEffect(() => {
     if (rendered) void render();
-  }, [zoom, render, rendered]);
+  }, [zoom, render, rendered, renderVersion]);
 
   return (
     <div

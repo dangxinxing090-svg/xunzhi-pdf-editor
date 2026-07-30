@@ -9,10 +9,12 @@ export async function loadPdfFromBuffer(buffer: ArrayBuffer): Promise<PDFDocumen
 }
 
 export function extractPageMeta(pdf: PDFDocument): LoadDocResult {
-  const pages = pdf.getPages().map((page) => ({
-    width: page.getWidth(),
-    height: page.getHeight(),
-  }));
+  const pages = pdf.getPages().map((page) => {
+    // pdf-lib 的 getWidth/getHeight 返回 MediaBox 尺寸(不受 /Rotate 影响),保持原始未旋转尺寸。
+    // 旋转完全由 rotation 字段表达,由渲染层(pdfjs rotation 参数)和坐标层(coord.ts)处理。
+    const rotation = ((page.getRotation().angle % 360) + 360) % 360 as 0 | 90 | 180 | 270;
+    return { width: page.getWidth(), height: page.getHeight(), rotation };
+  });
   return {
     pageCount: pages.length,
     pages,

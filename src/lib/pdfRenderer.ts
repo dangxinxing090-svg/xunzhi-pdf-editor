@@ -26,8 +26,11 @@ export async function loadPdfForRender(
 /**
  * 渲染页面到 HTMLCanvasElement(渲染进程主线程,有 DOM 环境)。
  * 返回 dataURL 供 <img> 显示。
- * rotation 由渲染层烘焙进位图(交换宽高并旋转),与 renderPageToCanvas 一致:
- * 这样 <img> 物理尺寸 = 旋转后真实朝向,缩略图外框自然跟随旋转,内容不缩放变形。
+ * rotation 用 pdf.js 原生 viewport.rotation 烘焙进位图:
+ * canvas 物理尺寸 = 旋转后真实朝向,缩略图外框自然跟随旋转,内容不缩放变形。
+ *
+ * maxWidth 是"未旋转方向"的目标宽度;内部用 rotation:0 取原始尺寸算 scale,
+ * 再用 rotation 参数渲染,canvas 尺寸自动为旋转后朝向。
  */
 export async function renderPageToDataURL(
   docId: string,
@@ -39,54 +42,29 @@ export async function renderPageToDataURL(
   if (!doc) throw new Error(`Document not loaded for render: ${docId}`);
 
   const page = await doc.getPage(pageIndex + 1); // pdf.js 用 1-based
-  const viewport = page.getViewport({ scale: 1 });
-  const isLandscape = rotation === 90 || rotation === 270;
-  // 90°/270° 旋转后宽高交换:旋转后的宽度 = 原始高度。为使缩略图显示宽度与未旋转一致(≤ maxWidth),
-  // 按原始高度计算 scale;0°/180° 按原始宽度。这样旋转只是改变朝向,不改变预览图大小。
-  const scale = maxWidth / (isLandscape ? viewport.height : viewport.width);
-  const scaledViewport = page.getViewport({ scale });
+  // rotation:0 强制取原始未旋转尺寸(忽略 PDF 内嵌 /Rotate),与 Page.width 对齐
+  const baseVp = page.getViewport({ scale: 1, rotation: 0 });
+  const scale = maxWidth / baseVp.width;
+  // rotation 参数为绝对旋转(含 PDF 内嵌旋转);getViewport 返回旋转后尺寸
+  const scaledViewport = page.getViewport({ scale, rotation });
 
   const canvas = document.createElement('canvas');
+  canvas.width = scaledViewport.width;
+  canvas.height = scaledViewport.height;
   const ctx = canvas.getContext('2d')!;
-
-  if (!isLandscape) {
-    // 0°/180°:canvas 物理尺寸与页面一致,180° 仅视觉翻转不影响布局盒
-    canvas.width = scaledViewport.width;
-    canvas.height = scaledViewport.height;
-    if (rotation === 180) {
-      ctx.translate(canvas.width, canvas.height);
-      ctx.rotate(Math.PI);
-    }
-    await page.render({ canvas, canvasContext: ctx, viewport: scaledViewport }).promise;
-    return canvas.toDataURL('image/png');
-  }
-
-  // 90°/270°:交换 canvas 宽高,先渲染到离屏 canvas,再旋转绘制
-  canvas.width = scaledViewport.height;
-  canvas.height = scaledViewport.width;
-  const offscreen = document.createElement('canvas');
-  offscreen.width = scaledViewport.width;
-  offscreen.height = scaledViewport.height;
-  const offCtx = offscreen.getContext('2d')!;
-  await page.render({ canvas: offscreen, canvasContext: offCtx, viewport: scaledViewport }).promise;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (rotation === 90) {
-    ctx.translate(canvas.width, 0);
-  } else {
-    ctx.translate(0, canvas.height);
-  }
-  ctx.rotate((rotation * Math.PI) / 180);
-  ctx.drawImage(offscreen, 0, 0);
-
+  await page.render({ canvas, canvasContext: ctx, viewport: scaledViewport }).promise;
   return canvas.toDataURL('image/png');
 }
 
 /**
  * 高分辨率渲染页面到独立 Canvas 元素(供右侧真实页面预览,可滚动)。
  * 调用方提供目标 canvas,函数负责设置尺寸并渲染。
- * rotation 由渲染层处理(交换 canvas 宽高并在位图上旋转),
- * 这样 canvas 物理尺寸 = 旋转后真实朝向,布局自然,不依赖 CSS transform(会留空白)。
+ * rotation 用 pdf.js 原生 viewport.rotation 烘焙进位图:
+ * canvas 物理尺寸 = 旋转后真实朝向,布局自然,不依赖 CSS transform(会留空白)。
+ *
+ * targetWidth 是"未旋转方向"的目标宽度(= BASE_WIDTH * zoom);
+ * 内部用 rotation:0 取原始尺寸算 scale,再用 rotation 参数渲染,
+ * canvas 尺寸自动为旋转后朝向,与 ReaderPage 的 CSS displayWidth/displayHeight 一致。
  */
 export async function renderPageToCanvas(
   canvas: HTMLCanvasElement,
@@ -99,45 +77,16 @@ export async function renderPageToCanvas(
   if (!doc) throw new Error(`Document not loaded for render: ${docId}`);
 
   const page = await doc.getPage(pageIndex + 1);
-  const viewport = page.getViewport({ scale: 1 });
-  const scale = targetWidth / viewport.width;
-  const scaledViewport = page.getViewport({ scale });
+  // rotation:0 强制取原始未旋转尺寸(忽略 PDF 内嵌 /Rotate),与 Page.width 对齐
+  const baseVp = page.getViewport({ scale: 1, rotation: 0 });
+  const scale = targetWidth / baseVp.width;
+  // rotation 参数为绝对旋转(含 PDF 内嵌旋转);getViewport 返回旋转后尺寸
+  const scaledViewport = page.getViewport({ scale, rotation });
 
-  const isLandscape = rotation === 90 || rotation === 270;
-
-  if (!isLandscape) {
-    // 0°/180°:canvas 物理尺寸与页面一致,180° 仅视觉翻转不影响布局盒
-    canvas.width = scaledViewport.width;
-    canvas.height = scaledViewport.height;
-    const ctx = canvas.getContext('2d')!;
-    if (rotation === 180) {
-      ctx.translate(canvas.width, canvas.height);
-      ctx.rotate(Math.PI);
-    }
-    await page.render({ canvas, canvasContext: ctx, viewport: scaledViewport }).promise;
-    return;
-  }
-
-  // 90°/270°:交换 canvas 宽高,先渲染到离屏 canvas,再旋转绘制
-  canvas.width = scaledViewport.height;
-  canvas.height = scaledViewport.width;
+  canvas.width = scaledViewport.width;
+  canvas.height = scaledViewport.height;
   const ctx = canvas.getContext('2d')!;
-
-  const offscreen = document.createElement('canvas');
-  offscreen.width = scaledViewport.width;
-  offscreen.height = scaledViewport.height;
-  const offCtx = offscreen.getContext('2d')!;
-  await page.render({ canvas: offscreen, canvasContext: offCtx, viewport: scaledViewport }).promise;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (rotation === 90) {
-    ctx.translate(canvas.width, 0);
-  } else {
-    // 270°
-    ctx.translate(0, canvas.height);
-  }
-  ctx.rotate((rotation * Math.PI) / 180);
-  ctx.drawImage(offscreen, 0, 0);
+  await page.render({ canvas, canvasContext: ctx, viewport: scaledViewport }).promise;
 }
 
 /**

@@ -23,6 +23,7 @@ interface EditorState {
   selectedAnnoId: string | null;
   dirtyDocs: Set<string>; // 有未保存编辑的文档 id(关闭时提醒)
   hideAd: boolean; // 是否隐藏底部广告条(用户可在设置中关闭,但不能删除词条)
+  renderVersion: number; // 文档渲染版本号;applyAnnotations 烘焙后递增,驱动 ReaderPage 重渲染
 
   setMode: (mode: EditorMode) => void;
   setZoom: (zoom: number) => void;
@@ -141,6 +142,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedAnnoId: null,
   dirtyDocs: new Set(),
   hideAd: typeof localStorage !== 'undefined' && localStorage.getItem('hideAd') === 'true',
+  renderVersion: 0,
 
   setMode: (mode) => set({ mode, activeTool: 'select', selectedAnnoId: null }),
   setZoom: (zoom) => set({ zoom: Math.max(0.25, Math.min(4, zoom)) }),
@@ -281,8 +283,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   applyAnnotations: async () => {
     const { annotations, pages, activeDocId } = get();
     if (!activeDocId) return;
-    // 收集活动文档所有页的标注,转成 AnnoSpec(pageIndex 替代 pageId)
-    const docPages = pages.filter((p) => p.sourceDocId === activeDocId);
+    // 收集活动文档所有页(不含已删除)的标注,转成 AnnoSpec
+    const docPages = pages.filter((p) => p.sourceDocId === activeDocId && !p.deleted);
     const total = docPages.length;
     const specs: AnnoSpec[] = [];
     docPages.forEach((page, displayIndex) => {
@@ -324,7 +326,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       disposeRenderDoc(activeDocId);
       await loadPdfForRender(activeDocId, renderBuffer);
       // 清空已应用的标注(已固化进 PDF),保留未应用的(此处全部已应用)
-      set({ annotations: {}, selectedAnnoId: null, error: null });
+      // 递增 renderVersion 驱动 ReaderPage 重渲染可见页;
+      // 置空 thumbnail 触发 PageCard 缩略图重渲染(复用 rotatePages 模式)
+      set((state) => ({
+        annotations: {},
+        selectedAnnoId: null,
+        error: null,
+        renderVersion: state.renderVersion + 1,
+        pages: state.pages.map((p) =>
+          p.sourceDocId === activeDocId ? { ...p, thumbnail: null } : p,
+        ),
+      }));
       markDirty(set, activeDocId);
     } catch (err) {
       set({ error: `应用标注失败:${String(err)}` });
@@ -450,7 +462,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       const doc: SourceDoc = {
         id: docId,
-        fileName,
+        fileName: fileName.replace(/\.pdf$/i, ''),
         pageCount: meta.pageCount,
         filePath: path,
       };
@@ -459,7 +471,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         id: `${docId}-p${i}`,
         sourceDocId: docId,
         sourcePageIndex: i,
-        rotation: 0,
+        rotation: p.rotation,
         width: p.width,
         height: p.height,
         thumbnail: null,
@@ -787,7 +799,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         // selected:清除所选页所属文档
         for (const p of exportPages) nextDirty.delete(p.sourceDocId);
       }
-      set({ isExporting: false, dirtyDocs: nextDirty });
+      // 更新文档名与路径为导出位置(文档栏显示新名称)
+      const exportedName = savePath.split(/[/\\]/).pop()!.replace(/\.pdf$/i, '');
+      set((state) => ({
+        isExporting: false,
+        dirtyDocs: nextDirty,
+        sourceDocs: mode === 'current' && activeDocId
+          ? state.sourceDocs.map((d) =>
+              d.id === activeDocId ? { ...d, fileName: exportedName, filePath: savePath } : d,
+            )
+          : state.sourceDocs,
+      }));
     } catch (err) {
       set({ isExporting: false, error: String(err) });
     }
@@ -926,7 +948,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       // 另存为成功后清除该文档的未保存标记(用户已保存工作)
       const nextDirty = new Set(get().dirtyDocs);
       nextDirty.delete(docId);
-      set({ isExporting: false, dirtyDocs: nextDirty });
+      // 更新文档名与路径为另存位置(内存文档晋升为磁盘文档,文档栏显示新名称且可重命名)
+      const savedName = savePath.split(/[/\\]/).pop()!.replace(/\.pdf$/i, '');
+      set((state) => ({
+        isExporting: false,
+        dirtyDocs: nextDirty,
+        sourceDocs: state.sourceDocs.map((d) =>
+          d.id === docId ? { ...d, fileName: savedName, filePath: savePath } : d,
+        ),
+      }));
     } catch (err) {
       set({ isExporting: false, error: String(err) });
     }

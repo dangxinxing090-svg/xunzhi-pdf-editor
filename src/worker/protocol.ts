@@ -73,7 +73,7 @@ export interface WorkerResponse {
 
 export interface LoadDocResult {
   pageCount: number;
-  pages: Array<{ width: number; height: number }>;
+  pages: Array<{ width: number; height: number; rotation: 0 | 90 | 180 | 270 }>;
 }
 
 /** loadDoc / createDocFromPages 返回:元数据 + 供主线程 pdf.js 渲染的字节。 */
