@@ -6,6 +6,10 @@ on:
       - 'v*' # 打 v 开头的 tag 触发正式构建并上传 Release
   workflow_dispatch: # 也可在 Actions 页面手动触发
 
+# tag 触发时需要写权限才能创建 Release
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -14,7 +18,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - run: npm ci
