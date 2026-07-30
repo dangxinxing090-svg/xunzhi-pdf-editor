@@ -11,17 +11,20 @@
 .anno-image { position: absolute; cursor: move; background-position: center; }
 .anno-image.selected { box-shadow: 0 0 0 2px #1976d2; }
 
-.anno-text { position: absolute; cursor: move; display: flex; align-items: center; overflow: hidden; white-space: nowrap; user-select: none; }
+/* 选中标注的八方位缩放手柄 */
+.anno-resize-handle { position: absolute; width: 8px; height: 8px; background: #fff; border: 1px solid #1976d2; border-radius: 2px; z-index: 10; }
+
+.anno-text { position: absolute; cursor: move; display: flex; align-items: flex-start; overflow: visible; white-space: pre; user-select: none; line-height: 1.2; }
 .anno-text.selected { box-shadow: 0 0 0 1px #1976d2; }
 
 .anno-draft { position: absolute; border: 1px dashed #1976d2; background: rgba(25, 118, 210, 0.1); pointer-events: none; }
 
-.anno-text-input { position: absolute; z-index: 30; padding: 2px 4px; font-size: 14px; border: 1px solid #1976d2; border-radius: 3px; outline: none; min-width: 100px; }
+.anno-text-input { position: absolute; z-index: 30; padding: 2px 4px; border: 1px solid #1976d2; border-radius: 6px; outline: none; min-width: 80px; min-height: 24px; resize: both; font-family: sans-serif; line-height: 1.2; overflow: hidden; }
 
-.anno-hint { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); background: #1976d2; color: white; padding: 2px 8px; border-radius: 3px; font-size: 12px; pointer-events: none; }
+.anno-hint { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); background: #1976d2; color: white; padding: 2px 8px; border-radius: 6px; font-size: 12px; pointer-events: none; }
 
-.anno-draft.crop-draft { border-color: #d32f2f; background: rgba(211, 47, 47, 0.1); }
-
-.crop-mask { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-.crop-mask > div { position: absolute; background: rgba(0, 0, 0, 0.45); }
-.crop-mask .crop-keep { background: transparent; border: 1px dashed #d32f2f; }
+/* 标注右键菜单 */
+.anno-menu-overlay { position: fixed; inset: 0; z-index: 40; }
+.anno-context-menu { position: absolute; z-index: 41; background: white; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); min-width: 140px; padding: 4px 0; }
+.anno-context-menu button { display: block; width: 100%; text-align: left; padding: 6px 12px; border: none; background: none; cursor: pointer; font-size: 12px; }
+.anno-context-menu button:hover { background: #f0f0f0; }

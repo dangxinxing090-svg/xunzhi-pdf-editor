@@ -18,5 +18,9 @@ export default defineConfig({
   },
   test: {
     exclude: ['node_modules', 'tests/e2e/**'],
+    alias: {
+      // pdfjs-dist 依赖 DOM,在 Node 测试环境中 stub 掉
+      'pdfjs-dist': __dirname + '/tests/stubs/pdfjs-dist.ts',
+    },
   },
 });

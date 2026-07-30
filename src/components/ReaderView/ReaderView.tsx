@@ -85,7 +85,14 @@ function ReaderPage({ page, index, docId, zoom, mode, onVisible }: ReaderPagePro
         for (const entry of entries) {
           if (entry.isIntersecting) {
             void render();
-            onVisible(index);
+            // 仅当页面真正进入视口且顶部在视口中线以上时,才更新当前页码。
+            // 预渲染边距(200px)会让下一页提前触发 isIntersecting,若此时就更新
+            // 当前页会错判成下一页;用中线判定避免提前翻页。
+            const r = entry.boundingClientRect;
+            const vh = window.innerHeight;
+            if (r.top < vh / 2 && r.bottom > 0) {
+              onVisible(index);
+            }
           } else if (rendered) {
             // 离屏释放:清空 canvas 内容以控内存
             const canvas = canvasRef.current;

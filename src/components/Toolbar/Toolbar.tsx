@@ -27,6 +27,44 @@ function ModeSwitcher() {
   );
 }
 
+/** 文件操作:打开 + 导出当前文档。三种模式共享。 */
+function FileOps() {
+  const loadDocument = useEditorStore((s) => s.loadDocument);
+  const exportPdf = useEditorStore((s) => s.exportPdf);
+  const isExporting = useEditorStore((s) => s.isExporting);
+
+  const handleOpen = async () => {
+    const files = await window.electronAPI.openPdfDialog();
+    if (!files) return;
+    for (const f of files) {
+      await loadDocument(f.path, f.name);
+    }
+  };
+
+  return (
+    <>
+      <button onClick={handleOpen}>打开</button>
+      <button onClick={() => void exportPdf('current')} disabled={isExporting}>
+        {isExporting ? '导出中...' : '导出'}
+      </button>
+    </>
+  );
+}
+
+/** 撤销/重做:在「导出」右侧,仅页面/内容编辑模式显示。 */
+function UndoRedoButtons() {
+  const undo = useEditorStore((s) => s.undo);
+  const redo = useEditorStore((s) => s.redo);
+  const canUndo = useEditorStore((s) => s.past.length > 0);
+  const canRedo = useEditorStore((s) => s.future.length > 0);
+  return (
+    <>
+      <button onClick={undo} disabled={!canUndo} title="撤销 (Ctrl+Z)"><UndoIcon /></button>
+      <button onClick={redo} disabled={!canRedo} title="重做 (Ctrl+Shift+Z)"><RedoIcon /></button>
+    </>
+  );
+}
+
 function ReadToolbar() {
   const zoom = useEditorStore((s) => s.zoom);
   const setZoom = useEditorStore((s) => s.setZoom);
@@ -53,9 +91,13 @@ function ReadToolbar() {
 
   return (
     <>
-      <button onClick={() => setZoom(zoom - 0.1)} disabled={zoom <= 0.25}>−</button>
-      <span className="zoom-display">{Math.round(zoom * 100)}%</span>
-      <button onClick={() => setZoom(zoom + 0.1)} disabled={zoom >= 4}>+</button>
+      <span className="spacer" />
+      <div className="zoom-group">
+        <button onClick={() => setZoom(zoom - 0.1)} disabled={zoom <= 0.25}>−</button>
+        <span className="zoom-display">{Math.round(zoom * 100)}%</span>
+        <button onClick={() => setZoom(zoom + 0.1)} disabled={zoom >= 4}>+</button>
+      </div>
+      <span className="spacer" />
       <button onClick={() => setZoom(1.0)}>适合宽度</button>
       <span className="divider" />
       <input
@@ -76,12 +118,8 @@ function ContentToolbar() {
   const activeTool = useEditorStore((s) => s.activeTool);
   const setActiveTool = useEditorStore((s) => s.setActiveTool);
   const applyAnnotations = useEditorStore((s) => s.applyAnnotations);
-  const applyCrop = useEditorStore((s) => s.applyCrop);
   const annotations = useEditorStore((s) => s.annotations);
-  const cropDraft = useEditorStore((s) => s.cropDraft);
-  const setCropDraft = useEditorStore((s) => s.setCropDraft);
   const [applying, setApplying] = useState(false);
-  const [cropping, setCropping] = useState(false);
 
   const tools: Array<{ tool: typeof activeTool; label: string }> = [
     { tool: 'select', label: '选择' },
@@ -90,7 +128,7 @@ function ContentToolbar() {
     { tool: 'highlight', label: '高亮' },
     { tool: 'text', label: '文本批注' },
     { tool: 'image', label: '插入图片' },
-    { tool: 'crop', label: '裁剪' },
+    { tool: 'marquee', label: '圈取' },
   ];
 
   const annoCount = Object.values(annotations).reduce((n, list) => n + list.length, 0);
@@ -101,13 +139,6 @@ function ContentToolbar() {
     setApplying(true);
     await applyAnnotations();
     setApplying(false);
-  };
-
-  const handleApplyCrop = async () => {
-    if (!cropDraft) return;
-    setCropping(true);
-    await applyCrop();
-    setCropping(false);
   };
 
   return (
@@ -127,38 +158,45 @@ function ContentToolbar() {
       <button onClick={() => openDialog('watermark')}>水印</button>
       <button onClick={() => openDialog('header')}>页眉</button>
       <button onClick={() => openDialog('footer')}>页脚</button>
-      <span className="divider" />
-      {cropDraft ? (
-        <>
-          <button className="apply-btn" onClick={handleApplyCrop} disabled={cropping}>
-            {cropping ? '裁剪中...' : '应用裁剪'}
-          </button>
-          <button onClick={() => setCropDraft(null)}>取消裁剪</button>
-        </>
-      ) : (
-        <span className="tool-placeholder">选择裁剪工具后在页面上拖拽框选区域</span>
-      )}
       <span className="spacer" />
-      <button onClick={() => setZoom(zoom - 0.1)} disabled={zoom <= 0.25}>−</button>
-      <span className="zoom-display">{Math.round(zoom * 100)}%</span>
-      <button onClick={() => setZoom(zoom + 0.1)} disabled={zoom >= 4}>+</button>
-      <span className="divider" />
       <button className="apply-btn" onClick={handleApply} disabled={annoCount === 0 || applying}>
         {applying ? '应用中...' : `应用 (${annoCount})`}
       </button>
+      <div className="toolbar-row2">
+        <span className="spacer" />
+        <div className="zoom-group">
+          <button onClick={() => setZoom(zoom - 0.1)} disabled={zoom <= 0.25}>−</button>
+          <span className="zoom-display">{Math.round(zoom * 100)}%</span>
+          <button onClick={() => setZoom(zoom + 0.1)} disabled={zoom >= 4}>+</button>
+        </div>
+        <span className="spacer" />
+      </div>
       <ContentForms />
     </>
   );
 }
 
+/** 撤销图标:逆时针弯曲箭头(SVG,不依赖字体)。 */
+function UndoIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 14L4 9l5-5" />
+      <path d="M4 9h11a5 5 0 0 1 5 5v0a5 5 0 0 1-5 5h-4" />
+    </svg>
+  );
+}
+
+/** 重做图标:顺时针弯曲箭头(SVG,不依赖字体)。 */
+function RedoIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 14l5-5-5-5" />
+      <path d="M20 9H9a5 5 0 0 0-5 5v0a5 5 0 0 0 5 5h4" />
+    </svg>
+  );
+}
+
 function PagesToolbar() {
-  const loadDocument = useEditorStore((s) => s.loadDocument);
-  const undo = useEditorStore((s) => s.undo);
-  const redo = useEditorStore((s) => s.redo);
-  const canUndo = useEditorStore((s) => s.past.length > 0);
-  const canRedo = useEditorStore((s) => s.future.length > 0);
-  const exportPdf = useEditorStore((s) => s.exportPdf);
-  const isExporting = useEditorStore((s) => s.isExporting);
   const selection = useEditorStore((s) => s.selection);
   const selectedDocIds = useEditorStore((s) => s.selectedDocIds);
   const rotatePages = useEditorStore((s) => s.rotatePages);
@@ -168,51 +206,26 @@ function PagesToolbar() {
   const splitToNewDocument = useEditorStore((s) => s.splitToNewDocument);
   const saveSelectionAsDoc = useEditorStore((s) => s.saveSelectionAsDoc);
   const mergeDocuments = useEditorStore((s) => s.mergeDocuments);
-  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const hasSelection = selection.size > 0;
   const sel = [...selection];
 
-  const handleOpen = async () => {
-    const files = await window.electronAPI.openPdfDialog();
-    if (!files) return;
-    for (const f of files) {
-      await loadDocument(f.path, f.name);
-    }
-  };
-
-  const handleExport = (mode: 'current' | 'selected' | 'all') => {
-    setShowExportMenu(false);
-    void exportPdf(mode);
-  };
-
   return (
     <>
-      <button onClick={handleOpen}>打开</button>
-      <div className="export-menu">
-        <button onClick={() => setShowExportMenu(!showExportMenu)} disabled={isExporting}>
-          {isExporting ? '导出中...' : '导出 ▾'}
-        </button>
-        {showExportMenu && (
-          <div className="dropdown">
-            <button onClick={() => handleExport('current')}>导出当前文档</button>
-            <button onClick={() => handleExport('selected')} disabled={!hasSelection}>导出选中页</button>
-            <button onClick={() => handleExport('all')}>合并全部导出</button>
-          </div>
-        )}
-      </div>
-      <span className="divider" />
       <button onClick={() => void insertBlankPage()} disabled={!useEditorStore.getState().activeDocId}>+ 空白页</button>
       <button onClick={() => void duplicatePages(sel)} disabled={!hasSelection}>复制</button>
       <button onClick={() => rotatePages(sel, 90)} disabled={!hasSelection}>↻ 旋转</button>
       <button onClick={() => deletePages(sel)} disabled={!hasSelection}>✕ 删除</button>
       <span className="divider" />
-      <button onClick={() => void splitToNewDocument(sel)} disabled={!hasSelection}>拆分</button>
-      <button onClick={() => void saveSelectionAsDoc(sel)} disabled={!hasSelection}>另存文档</button>
-      <button onClick={() => void mergeDocuments([...selectedDocIds])} disabled={selectedDocIds.size < 2}>合并文档{selectedDocIds.size >= 2 ? ` (${selectedDocIds.size})` : ''}</button>
-      <span className="spacer" />
-      <button onClick={undo} disabled={!canUndo}>↶</button>
-      <button onClick={redo} disabled={!canRedo}>↷</button>
+      <button onClick={() => void splitToNewDocument(sel)} disabled={!hasSelection}>拆出</button>
+      <button onClick={() => void saveSelectionAsDoc(sel)} disabled={!hasSelection}>复制为新文档</button>
+      <button
+        onClick={() => void mergeDocuments([...selectedDocIds])}
+        disabled={selectedDocIds.size < 2}
+        title={selectedDocIds.size >= 2 ? undefined : '选中2个或者以上文档点击后可以合并为1个文档'}
+      >
+        合并文档{selectedDocIds.size >= 2 ? ` (${selectedDocIds.size})` : ''}
+      </button>
     </>
   );
 }
@@ -224,10 +237,18 @@ export function Toolbar() {
     <div className="toolbar">
       <ModeSwitcher />
       <span className="divider" />
-      {activeDocId ? (
-        mode === 'read' ? <ReadToolbar /> : mode === 'content' ? <ContentToolbar /> : <PagesToolbar />
-      ) : (
-        <span className="empty-hint">打开 PDF 文档开始</span>
+      <FileOps />
+      {activeDocId && mode !== 'read' && (
+        <>
+          <span className="divider" />
+          <UndoRedoButtons />
+        </>
+      )}
+      {activeDocId && (
+        <>
+          <span className="divider" />
+          {mode === 'read' ? <ReadToolbar /> : mode === 'content' ? <ContentToolbar /> : <PagesToolbar />}
+        </>
       )}
     </div>
   );

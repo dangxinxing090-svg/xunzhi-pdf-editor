@@ -1,6 +1,8 @@
-import { PDFDocument, degrees, rgb, StandardFonts } from 'pdf-lib';
+import { PDFDocument, degrees, rgb, StandardFonts, type PDFFont } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import type { LoadDocResult, ExportPdfPayload, PageSpec, ApplyCropPayload } from './protocol';
 import type { AnnoSpec } from '../types/pdf';
+import { loadCjkFontBytes } from './fontLoader';
 
 export async function loadPdfFromBuffer(buffer: ArrayBuffer): Promise<PDFDocument> {
   return PDFDocument.load(buffer, { ignoreEncryption: true });
@@ -111,6 +113,19 @@ export async function applyAnnotations(
 
   const font = await pdf.embedFont(StandardFonts.Helvetica);
 
+  // 懒加载 CJK 字体:仅当存在含非 ASCII(中文等)的文本标注时才嵌入,
+  // subset:true 只嵌入用到的字形,避免输出体积膨胀。
+  let cjkFont: PDFFont | null = null;
+  async function getCjkFont(): Promise<PDFFont> {
+    if (!cjkFont) {
+      const doc = docs.get(docId)!;
+      doc.registerFontkit(fontkit);
+      const bytes = await loadCjkFontBytes();
+      cjkFont = await doc.embedFont(bytes, { subset: true });
+    }
+    return cjkFont;
+  }
+
   // 预嵌入所有图片(按 dataUrl 去重)
   const imgCache = new Map<string, any>();
   for (const a of annos) {
@@ -125,6 +140,7 @@ export async function applyAnnotations(
     const color = a.color ? hexToRgb(a.color) : rgb(0, 0, 0);
     switch (a.type) {
       case 'rect':
+      case 'marquee':
         page.drawRectangle({
           x: a.x, y: a.y, width: a.width, height: a.height,
           borderColor: a.stroke ? hexToRgb(a.stroke) : color,
@@ -151,15 +167,38 @@ export async function applyAnnotations(
       case 'watermark':
       case 'header':
       case 'footer':
-        page.drawText(a.text ?? '', {
-          x: a.x, y: a.y,
-          size: a.fontSize ?? 12,
-          font,
-          color,
-          opacity: a.opacity,
-          rotate: degrees(a.rotation ?? 0),
-        });
+      case 'pageNumber': {
+        const rawText = a.text ?? '';
+        // 含非 ASCII(中文等)用 CJK 字体;纯 ASCII 用 Helvetica(体积更小)
+        const hasCjk = /[^\x00-\x7F]/.test(rawText);
+        const textFont = hasCjk ? await getCjkFont() : font;
+        // 按行绘制:drawText 不支持自动换行,逐行定位
+        const lines = rawText.split('\n');
+        const lineHeight = (a.fontSize ?? 12) * 1.2;
+        // drawText 的 y 是该行基线(左下锚点);多行从底部向上排
+        for (let i = 0; i < lines.length; i++) {
+          const baselineY = a.y + (lines.length - 1 - i) * lineHeight;
+          page.drawText(lines[i], {
+            x: a.x, y: baselineY,
+            size: a.fontSize ?? 12,
+            font: textFont,
+            color,
+            opacity: a.opacity,
+            rotate: degrees(a.rotation ?? 0),
+          });
+        }
+        // 外边框:有 stroke 时在文本框外绘制矩形描边
+        if (a.stroke && a.strokeWidth) {
+          page.drawRectangle({
+            x: a.x, y: a.y, width: a.width, height: a.height,
+            borderColor: hexToRgb(a.stroke),
+            borderWidth: a.strokeWidth,
+            color: undefined,
+            opacity: a.opacity,
+          });
+        }
         break;
+      }
       case 'image': {
         const img = a.imageDataUrl ? imgCache.get(a.imageDataUrl) : undefined;
         if (img) {

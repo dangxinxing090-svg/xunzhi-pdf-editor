@@ -63,4 +63,35 @@ describe('rotatePages', () => {
     expect(useEditorStore.getState().future.length).toBe(0);
     expect(useEditorStore.getState().past.length).toBe(1);
   });
+
+  // 缩略图按原朝向渲染;旋转后必须清空,触发 PageCard 用新 rotation 重渲染烘焙位图,
+  // 否则旧位图上叠 CSS 旋转会导致内容缩放/变形。
+  it('clears thumbnail of rotated pages so they re-render at new orientation', () => {
+    seedPages(['a', 'b']);
+    // 给 a 一张已渲染的缩略图
+    useEditorStore.setState({
+      pages: useEditorStore.getState().pages.map((p) =>
+        p.id === 'a' ? { ...p, thumbnail: 'data:old' } : p,
+      ),
+    });
+    useEditorStore.getState().rotatePages(['a'], 90);
+    const a = useEditorStore.getState().pages.find((p) => p.id === 'a')!;
+    const b = useEditorStore.getState().pages.find((p) => p.id === 'b')!;
+    expect(a.thumbnail).toBeNull();
+    expect(b.thumbnail).toBeNull();
+  });
+
+  it('undo also clears thumbnail (re-render back to original orientation)', () => {
+    seedPages(['a']);
+    useEditorStore.getState().rotatePages(['a'], 90);
+    // 模拟重渲染后产生了旋转缩略图
+    useEditorStore.setState({
+      pages: useEditorStore.getState().pages.map((p) =>
+        p.id === 'a' ? { ...p, thumbnail: 'data:rotated' } : p,
+      ),
+    });
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().pages[0].rotation).toBe(0);
+    expect(useEditorStore.getState().pages[0].thumbnail).toBeNull();
+  });
 });

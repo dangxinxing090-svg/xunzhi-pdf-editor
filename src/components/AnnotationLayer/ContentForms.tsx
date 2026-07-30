@@ -16,6 +16,8 @@ export function ContentForms() {
 
   const addWatermark = useEditorStore((s) => s.addWatermark);
   const addHeaderFooter = useEditorStore((s) => s.addHeaderFooter);
+  const addPageNumber = useEditorStore((s) => s.addPageNumber);
+  const setActiveTool = useEditorStore((s) => s.setActiveTool);
 
   if (!dialog) return null;
 
@@ -24,14 +26,22 @@ export function ContentForms() {
       <div className="content-form" onClick={(e) => e.stopPropagation()}>
         {dialog === 'watermark' && (
           <WatermarkForm
-            onSubmit={(opts) => { addWatermark(opts); setDialog(null); }}
+            onSubmit={(opts) => { addWatermark(opts); setActiveTool('select'); setDialog(null); }}
             onCancel={() => setDialog(null)}
           />
         )}
         {(dialog === 'header' || dialog === 'footer') && (
           <HeaderFooterForm
             type={dialog}
-            onSubmit={(opts) => { addHeaderFooter({ type: dialog, ...opts }); setDialog(null); }}
+            onSubmit={(opts) => {
+              if ('pageNumber' in opts && opts.pageNumber) {
+                addPageNumber({ template: opts.template, fontSize: opts.fontSize, color: opts.color, align: opts.align, scope: opts.scope });
+              } else {
+                addHeaderFooter({ type: dialog, text: opts.text, fontSize: opts.fontSize, color: opts.color, scope: opts.scope });
+              }
+              setActiveTool('select');
+              setDialog(null);
+            }}
             onCancel={() => setDialog(null)}
           />
         )}
@@ -79,23 +89,70 @@ function WatermarkForm({ onSubmit, onCancel }: {
   );
 }
 
+/** 页脚提交参数:普通文字 或 页码(模板+对齐)。页眉仅普通文字。 */
+type HeaderFooterSubmit =
+  | { pageNumber: false; text: string; fontSize: number; color: string; scope: 'all' | 'current' }
+  | { pageNumber: true; template: string; fontSize: number; color: string; align: 'left' | 'center' | 'right'; scope: 'all' | 'current' };
+
 function HeaderFooterForm({ type, onSubmit, onCancel }: {
   type: 'header' | 'footer';
-  onSubmit: (opts: { text: string; fontSize: number; color: string }) => void;
+  onSubmit: (opts: HeaderFooterSubmit) => void;
   onCancel: () => void;
 }) {
+  // 页码模式仅页脚支持;页眉强制普通文字。
+  const [pageNumber, setPageNumber] = useState(false);
   const [text, setText] = useState(type === 'header' ? '页眉文本' : '页脚文本');
+  const [template, setTemplate] = useState('第 {n} 页');
+  const [align, setAlign] = useState<'left' | 'center' | 'right'>('center');
   const [fontSize, setFontSize] = useState(12);
   const [color, setColor] = useState('#000000');
+  const [scope, setScope] = useState<'all' | 'current'>('all');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pageNumber) {
+      onSubmit({ pageNumber: true, template, fontSize, color, align, scope });
+    } else {
+      onSubmit({ pageNumber: false, text, fontSize, color, scope });
+    }
+  };
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit({ text, fontSize, color }); }}>
+    <form onSubmit={handleSubmit}>
       <h3>{type === 'header' ? '添加页眉' : '添加页脚'}</h3>
-      <label>文本<input value={text} onChange={(e) => setText(e.target.value)} /></label>
+      {type === 'footer' && (
+        <label>内容类型
+          <select value={pageNumber ? 'pageNumber' : 'text'} onChange={(e) => setPageNumber(e.target.value === 'pageNumber')}>
+            <option value="text">普通文字</option>
+            <option value="pageNumber">页码</option>
+          </select>
+        </label>
+      )}
+      {pageNumber ? (
+        <>
+          <label>页码格式<input value={template} onChange={(e) => setTemplate(e.target.value)} placeholder="第 {n} 页" /></label>
+          <small className="form-hint">{'{n}'} = 当前页码,{'{total}'} = 总页数</small>
+          <label>对齐
+            <select value={align} onChange={(e) => setAlign(e.target.value as 'left' | 'center' | 'right')}>
+              <option value="left">左对齐</option>
+              <option value="center">居中</option>
+              <option value="right">右对齐</option>
+            </select>
+          </label>
+        </>
+      ) : (
+        <label>文本<input value={text} onChange={(e) => setText(e.target.value)} /></label>
+      )}
       <label>字号<input type="number" value={fontSize} onChange={(e) => setFontSize(+e.target.value)} /></label>
       <label>颜色<input type="color" value={color} onChange={(e) => setColor(e.target.value)} /></label>
+      <label>范围
+        <select value={scope} onChange={(e) => setScope(e.target.value as 'all' | 'current')}>
+          <option value="all">全部页</option>
+          <option value="current">当前页</option>
+        </select>
+      </label>
       <div className="form-actions">
-        <button type="submit">添加(全部页)</button>
+        <button type="submit">添加</button>
         <button type="button" onClick={onCancel}>取消</button>
       </div>
     </form>

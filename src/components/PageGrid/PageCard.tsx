@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Page } from '../../types/pdf';
 import { useEditorStore } from '../../store/editorStore';
-import { workerClient } from '../../worker/workerClient';
+import { renderPageToDataURL } from '../../lib/pdfRenderer';
 
 interface Props {
   page: Page;
@@ -11,7 +11,6 @@ interface Props {
 }
 
 export function PageCard({ page, index }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const setPageThumbnail = useEditorStore((s) => s.setPageThumbnail);
   const selected = useEditorStore((s) => s.selection.has(page.id));
   const selectPage = useEditorStore((s) => s.selectPage);
@@ -20,7 +19,6 @@ export function PageCard({ page, index }: Props) {
   const insertBlankPage = useEditorStore((s) => s.insertBlankPage);
   const duplicatePages = useEditorStore((s) => s.duplicatePages);
   const splitToNewDocument = useEditorStore((s) => s.splitToNewDocument);
-  const saveSelectionAsDoc = useEditorStore((s) => s.saveSelectionAsDoc);
   const exportPdf = useEditorStore((s) => s.exportPdf);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -29,22 +27,20 @@ export function PageCard({ page, index }: Props) {
   });
 
   useEffect(() => {
-    if (page.thumbnail) {
-      drawToCanvas(canvasRef.current, page.thumbnail, page.rotation);
-      return;
-    }
+    if (page.thumbnail) return;
     let cancelled = false;
-    workerClient
-      .renderThumb(page.sourceDocId, page.sourcePageIndex)
-      .then((bitmap) => {
+    renderPageToDataURL(page.sourceDocId, page.sourcePageIndex, 200, page.rotation)
+      .then((dataUrl) => {
         if (cancelled) return;
-        setPageThumbnail(page.id, bitmap);
-        drawToCanvas(canvasRef.current, bitmap, page.rotation);
+        setPageThumbnail(page.id, dataUrl);
+      })
+      .catch((err) => {
+        console.error('[PageCard] renderThumb failed for', page.id, err);
       });
     return () => {
       cancelled = true;
     };
-  }, [page.thumbnail, page.rotation, page.id, page.sourceDocId, page.sourcePageIndex, setPageThumbnail]);
+  }, [page.thumbnail, page.id, page.sourceDocId, page.sourcePageIndex, page.rotation, setPageThumbnail]);
 
   // 右键菜单打开时,点击外部关闭
   useEffect(() => {
@@ -89,7 +85,13 @@ export function PageCard({ page, index }: Props) {
       {...attributes}
       {...listeners}
     >
-      <canvas ref={canvasRef} />
+      <div className="thumb-wrap">
+        {page.thumbnail ? (
+          <img src={page.thumbnail} alt={`第 ${index + 1} 页`} />
+        ) : (
+          <div className="thumb-placeholder">加载中...</div>
+        )}
+      </div>
       <span className="page-number">{index + 1}</span>
       {menuOpen && (
         <div className="context-menu">
@@ -99,27 +101,9 @@ export function PageCard({ page, index }: Props) {
           <button onClick={() => { setMenuOpen(false); deletePages(effectiveSel); }}>✕ 删除</button>
           <div className="menu-sep" />
           <button onClick={() => { setMenuOpen(false); void splitToNewDocument(effectiveSel); }}>拆分到新文档</button>
-          <button onClick={() => { setMenuOpen(false); void saveSelectionAsDoc(effectiveSel); }}>另存为新文档</button>
           <button onClick={() => { setMenuOpen(false); void exportPdf('selected'); }}>导出选中页</button>
         </div>
       )}
     </div>
   );
-}
-
-function drawToCanvas(
-  canvas: HTMLCanvasElement | null,
-  bitmap: ImageBitmap,
-  rotation: number,
-): void {
-  if (!canvas) return;
-  const isLandscape = rotation === 90 || rotation === 270;
-  canvas.width = isLandscape ? bitmap.height : bitmap.width;
-  canvas.height = isLandscape ? bitmap.width : bitmap.height;
-  const ctx = canvas.getContext('2d')!;
-  ctx.save();
-  ctx.translate(canvas.width / 2, canvas.height / 2);
-  ctx.rotate((rotation * Math.PI) / 180);
-  ctx.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
-  ctx.restore();
 }

@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import type { Page, SourceDoc, Command, EditorMode, Annotation, ContentTool, AnnoSpec } from '../types/pdf';
+import type { Page, SourceDoc, Command, EditorMode, Annotation, ContentTool, AnnoSpec, MarqueeAnno, ImageAnno } from '../types/pdf';
 import { workerClient } from '../worker/workerClient';
-import { loadPdfForRender, disposeRenderDoc } from '../lib/pdfRenderer';
+import { loadPdfForRender, disposeRenderDoc, renderPageRegionToDataURL } from '../lib/pdfRenderer';
+import { resolvePageNumberText } from '../lib/pageNumber';
 
 interface EditorState {
   sourceDocs: SourceDoc[];
@@ -20,23 +21,30 @@ interface EditorState {
   activeTool: ContentTool;
   annotations: Record<string, Annotation[]>; // pageId -> annotations
   selectedAnnoId: string | null;
-  cropDraft: { pageId: string; rect: { x: number; y: number; width: number; height: number } } | null;
+  dirtyDocs: Set<string>; // 有未保存编辑的文档 id(关闭时提醒)
 
   setMode: (mode: EditorMode) => void;
   setZoom: (zoom: number) => void;
   setCurrentPageIndex: (index: number) => void;
   setActiveTool: (tool: ContentTool) => void;
   addAnnotation: (anno: Annotation) => void;
-  updateAnnotation: (id: string, patch: Partial<Annotation>) => void;
+  /** 圈取"复制":把 marquee 标注范围的 PDF 渲染成图片,立即在原框右侧生成图片标注副本。 */
+  copyAnnoAsImage: (annoId: string) => Promise<void>;
+  updateAnnotation: (id: string, patch: Partial<Annotation>, opts?: { transient?: boolean }) => void;
+  /** 拖拽移动/缩放结束时提交一条合并的历史命令(prev = 拖拽前快照)。无变化时不入栈。 */
+  commitAnnotationDrag: (prev: { annotations: Record<string, Annotation[]>; selectedAnnoId: string | null }) => void;
+  /** 按类型批量更新水印/页眉/页脚/页码:scope='all' 全部页,'current' 仅 pageId 对应页。transient=true 时不入历史(供批量拖拽逐像素更新,由 commitAnnotationDrag 合并提交)。 */
+  updateAnnotationsByType: (type: 'watermark' | 'header' | 'footer' | 'pageNumber', patch: Partial<Annotation>, scope: 'all' | 'current', pageId?: string, opts?: { transient?: boolean }) => void;
   removeAnnotation: (id: string) => void;
   selectAnnotation: (id: string | null) => void;
   clearAnnotationsForPage: (pageId: string) => void;
   clearAllAnnotations: () => void;
   applyAnnotations: () => Promise<void>;
-  applyCrop: () => Promise<void>;
-  setCropDraft: (draft: { pageId: string; rect: { x: number; y: number; width: number; height: number } } | null) => void;
   addWatermark: (opts: { text: string; fontSize: number; opacity: number; rotation: number; color: string; scope: 'all' | 'current' }) => void;
-  addHeaderFooter: (opts: { type: 'header' | 'footer'; text: string; fontSize: number; color: string }) => void;
+  addHeaderFooter: (opts: { type: 'header' | 'footer'; text: string; fontSize: number; color: string; scope: 'all' | 'current' }) => void;
+  /** 页码页脚:template 含 {n}(页码)/{total}(总页数)占位符,渲染与烘焙时解析。align 设初始横向位置,之后可拖动。 */
+  addPageNumber: (opts: { template: string; fontSize: number; color: string; align: 'left' | 'center' | 'right'; scope: 'all' | 'current' }) => void;
+  removeAnnotationsByType: (type: 'watermark' | 'header' | 'footer' | 'pageNumber', scope: 'all' | 'current', pageId?: string) => void;
 
   loadDocument: (path: string, fileName: string) => Promise<void>;
   setPageThumbnail: (pageId: string, dataUrl: string) => void;
@@ -80,6 +88,38 @@ function nextStoreAnnoId(): string {
   return `sa-${++storeAnnoCounter}`;
 }
 
+/**
+ * 推入一条标注历史命令(快照式)。
+ * prev 为修改前的 {annotations, selectedAnnoId};调用时读取当前(修改后)状态作为 next。
+ * undo 恢复 prev,redo 恢复 next。
+ */
+function pushAnnoCmd(
+  set: (partial: Partial<EditorState> | ((state: EditorState) => Partial<EditorState>)) => void,
+  get: () => EditorState,
+  prev: { annotations: Record<string, Annotation[]>; selectedAnnoId: string | null },
+): void {
+  const next = { annotations: get().annotations, selectedAnnoId: get().selectedAnnoId };
+  const cmd: Command = {
+    type: 'anno',
+    payload: { prev, next },
+    undo: () => set({ annotations: prev.annotations, selectedAnnoId: prev.selectedAnnoId }),
+  };
+  set((state) => ({ past: [...state.past, cmd], future: [] }));
+  // 标注编辑作用于当前活动文档,标记为已编辑
+  const docId = get().activeDocId;
+  if (docId) markDirty(set, docId);
+}
+
+/** 标记文档为已编辑(有未保存更改)。 */
+function markDirty(set: (partial: Partial<EditorState> | ((state: EditorState) => Partial<EditorState>)) => void, docId: string): void {
+  set((state) => {
+    if (state.dirtyDocs.has(docId)) return {};
+    const next = new Set(state.dirtyDocs);
+    next.add(docId);
+    return { dirtyDocs: next };
+  });
+}
+
 export const useEditorStore = create<EditorState>((set, get) => ({
   sourceDocs: [],
   pages: [],
@@ -97,23 +137,59 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   activeTool: 'select',
   annotations: {},
   selectedAnnoId: null,
-  cropDraft: null,
+  dirtyDocs: new Set(),
 
   setMode: (mode) => set({ mode, activeTool: 'select', selectedAnnoId: null }),
   setZoom: (zoom) => set({ zoom: Math.max(0.25, Math.min(4, zoom)) }),
   setCurrentPageIndex: (index) => set({ currentPageIndex: index }),
   setActiveTool: (tool) => set({ activeTool: tool, selectedAnnoId: null }),
 
-  addAnnotation: (anno) =>
+  addAnnotation: (anno) => {
+    const prev = { annotations: get().annotations, selectedAnnoId: get().selectedAnnoId };
     set((state) => ({
       annotations: {
         ...state.annotations,
         [anno.pageId]: [...(state.annotations[anno.pageId] ?? []), anno],
       },
       selectedAnnoId: anno.id,
-    })),
+    }));
+    pushAnnoCmd(set, get, prev);
+  },
 
-  updateAnnotation: (id, patch) =>
+  copyAnnoAsImage: async (annoId) => {
+    const { pages, annotations } = get();
+    // 找到该 marquee 标注及其所属页
+    let srcAnno: MarqueeAnno | null = null;
+    let page: Page | null = null;
+    for (const p of pages) {
+      const found = (annotations[p.id] ?? []).find((a) => a.id === annoId);
+      if (found && found.type === 'marquee') { srcAnno = found as MarqueeAnno; page = p; break; }
+    }
+    if (!srcAnno || !page) return;
+    const dataUrl = await renderPageRegionToDataURL(
+      page.sourceDocId,
+      page.sourcePageIndex,
+      { x: srcAnno.x, y: srcAnno.y, width: srcAnno.width, height: srcAnno.height },
+      page.width,
+      page.height,
+      page.rotation,
+    );
+    // 在原框右侧偏移生成图片标注副本,保持圈取比例;复用 addAnnotation(入历史 + 选中)。
+    const copy: ImageAnno = {
+      id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      pageId: page.id,
+      type: 'image',
+      x: srcAnno.x + srcAnno.width + 10,
+      y: srcAnno.y,
+      width: srcAnno.width,
+      height: srcAnno.height,
+      dataUrl,
+    };
+    get().addAnnotation(copy);
+  },
+
+  updateAnnotation: (id, patch, opts) => {
+    const prev = { annotations: get().annotations, selectedAnnoId: get().selectedAnnoId };
     set((state) => ({
       annotations: Object.fromEntries(
         Object.entries(state.annotations).map(([pageId, list]) => [
@@ -121,9 +197,57 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           list.map((a) => (a.id === id ? ({ ...a, ...patch } as Annotation) : a)),
         ]),
       ),
-    })),
+    }));
+    // transient(拖拽移动/缩放期间的逐像素更新)不入历史,由 commitAnnotationDrag 在拖拽结束时合并提交。
+    if (!opts?.transient) pushAnnoCmd(set, get, prev);
+    else { const docId = get().activeDocId; if (docId) markDirty(set, docId); }
+  },
 
-  removeAnnotation: (id) =>
+  commitAnnotationDrag: (prev) => {
+    // 与 pushAnnoCmd 同构,但仅在标注确有变化时入栈(避免无位移拖拽产生空历史)。
+    const next = { annotations: get().annotations, selectedAnnoId: get().selectedAnnoId };
+    const changed = JSON.stringify(prev.annotations) !== JSON.stringify(next.annotations);
+    if (!changed) return;
+    const cmd: Command = {
+      type: 'anno',
+      payload: { prev, next },
+      undo: () => set({ annotations: prev.annotations, selectedAnnoId: prev.selectedAnnoId }),
+    };
+    set((state) => ({ past: [...state.past, cmd], future: [] }));
+    const docId = get().activeDocId;
+    if (docId) markDirty(set, docId);
+  },
+
+  updateAnnotationsByType: (type, patch, scope, pageId, opts) => {
+    const prev = { annotations: get().annotations, selectedAnnoId: get().selectedAnnoId };
+    set((state) => {
+      const { pages, activeDocId, currentPageIndex } = get();
+      const docPages = pages.filter((p) => p.sourceDocId === activeDocId);
+      // 'current' 优先用传入 pageId(右键场景),否则用 currentPageIndex(属性面板场景)
+      const currentPages = pageId
+        ? docPages.filter((p) => p.id === pageId)
+        : [docPages[currentPageIndex]].filter(Boolean);
+      const targetPageIds = new Set(
+        (scope === 'all' ? docPages : currentPages).map((p) => p.id),
+      );
+      return {
+        annotations: Object.fromEntries(
+          Object.entries(state.annotations).map(([pid, list]) => [
+            pid,
+            targetPageIds.has(pid)
+              ? list.map((a) => (a.type === type ? ({ ...a, ...patch } as Annotation) : a))
+              : list,
+          ]),
+        ),
+      };
+    });
+    // transient(批量拖拽逐像素更新)不入历史,由 commitAnnotationDrag 在拖拽结束时合并提交。
+    if (!opts?.transient) pushAnnoCmd(set, get, prev);
+    else { const docId = get().activeDocId; if (docId) markDirty(set, docId); }
+  },
+
+  removeAnnotation: (id) => {
+    const prev = { annotations: get().annotations, selectedAnnoId: get().selectedAnnoId };
     set((state) => ({
       annotations: Object.fromEntries(
         Object.entries(state.annotations).map(([pageId, list]) => [
@@ -132,7 +256,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         ]),
       ),
       selectedAnnoId: state.selectedAnnoId === id ? null : state.selectedAnnoId,
-    })),
+    }));
+    pushAnnoCmd(set, get, prev);
+  },
 
   selectAnnotation: (id) => set({ selectedAnnoId: id }),
 
@@ -150,8 +276,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (!activeDocId) return;
     // 收集活动文档所有页的标注,转成 AnnoSpec(pageIndex 替代 pageId)
     const docPages = pages.filter((p) => p.sourceDocId === activeDocId);
+    const total = docPages.length;
     const specs: AnnoSpec[] = [];
-    for (const page of docPages) {
+    docPages.forEach((page, displayIndex) => {
       const list = annotations[page.id] ?? [];
       for (const a of list) {
         const spec: AnnoSpec = {
@@ -159,21 +286,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           type: a.type,
           x: a.x, y: a.y, width: a.width, height: a.height,
         };
-        if (a.type === 'rect' || a.type === 'ellipse') {
+        if (a.type === 'rect' || a.type === 'ellipse' || a.type === 'marquee') {
           spec.stroke = a.stroke; spec.strokeWidth = a.strokeWidth; spec.fill = a.fill;
         } else if (a.type === 'highlight') {
           spec.color = a.color; spec.opacity = a.opacity;
         } else if (a.type === 'image') {
           spec.imageDataUrl = a.dataUrl;
         } else {
-          // text/watermark/header/footer
+          // text/watermark/header/footer/pageNumber
           const t = a as import('../types/pdf').TextAnno;
-          spec.text = t.text; spec.color = t.color; spec.fontSize = t.fontSize;
+          // 页码标注:烘焙时按显示顺序解析占位符为字面文本(每页不同),worker 直接画字面值。
+          spec.text = t.type === 'pageNumber'
+            ? resolvePageNumberText(t.text, displayIndex + 1, total)
+            : t.text;
+          spec.color = t.color; spec.fontSize = t.fontSize;
           spec.rotation = t.rotation; spec.opacity = t.opacity;
+          spec.stroke = t.stroke; spec.strokeWidth = t.strokeWidth;
         }
         specs.push(spec);
       }
-    }
+    });
     if (specs.length === 0) {
       set({ error: '没有可应用的标注' });
       return;
@@ -186,25 +318,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       await loadPdfForRender(activeDocId, renderBuffer);
       // 清空已应用的标注(已固化进 PDF),保留未应用的(此处全部已应用)
       set({ annotations: {}, selectedAnnoId: null, error: null });
+      markDirty(set, activeDocId);
     } catch (err) {
       set({ error: `应用标注失败:${String(err)}` });
-    }
-  },
-
-  applyCrop: async () => {
-    const { cropDraft, pages, activeDocId } = get();
-    if (!activeDocId || !cropDraft) return;
-    const page = pages.find((p) => p.id === cropDraft.pageId);
-    if (!page) return;
-    try {
-      const { renderBuffer } = await workerClient.applyCrop(activeDocId, [
-        { pageIndex: page.sourcePageIndex, ...cropDraft.rect },
-      ]);
-      disposeRenderDoc(activeDocId);
-      await loadPdfForRender(activeDocId, renderBuffer);
-      set({ cropDraft: null, error: null });
-    } catch (err) {
-      set({ error: `裁剪失败:${String(err)}` });
     }
   },
 
@@ -232,13 +348,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => ({ annotations: { ...state.annotations, ...newAnnos } }));
   },
 
-  addHeaderFooter: ({ type, text, fontSize, color }) => {
-    const { pages, activeDocId } = get();
+  addHeaderFooter: ({ type, text, fontSize, color, scope }) => {
+    const { pages, activeDocId, currentPageIndex } = get();
     if (!activeDocId) return;
     const docPages = pages.filter((p) => p.sourceDocId === activeDocId);
+    const targetPages = scope === 'all' ? docPages : [docPages[currentPageIndex]].filter(Boolean);
     const margin = 36; // 0.5 inch 边距
     const newAnnos: Record<string, Annotation[]> = {};
-    for (const page of docPages) {
+    for (const page of targetPages) {
       const w = text.length * fontSize * 0.6;
       const anno: Annotation = {
         id: nextStoreAnnoId(),
@@ -254,7 +371,67 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => ({ annotations: { ...state.annotations, ...newAnnos } }));
   },
 
-  setCropDraft: (draft) => set({ cropDraft: draft }),
+  addPageNumber: ({ template, fontSize, color, align, scope }) => {
+    const { pages, activeDocId, currentPageIndex } = get();
+    if (!activeDocId) return;
+    const docPages = pages.filter((p) => p.sourceDocId === activeDocId);
+    const targetPages = scope === 'all' ? docPages : [docPages[currentPageIndex]].filter(Boolean);
+    const margin = 36; // 0.5 inch 边距
+    // 初始宽度按模板估算(占位符按实际位数代入最坏情况);仅用于初始定位,渲染以 max-content 自适应。
+    const sampleText = resolvePageNumberText(template, docPages.length, docPages.length);
+    const w = sampleText.length * fontSize * 0.6;
+    const newAnnos: Record<string, Annotation[]> = {};
+    for (const page of targetPages) {
+      const x = align === 'left' ? margin
+        : align === 'right' ? page.width - margin - w
+        : (page.width - w) / 2;
+      const anno: Annotation = {
+        id: nextStoreAnnoId(),
+        pageId: page.id,
+        type: 'pageNumber',
+        x,
+        y: margin, // 页脚底部
+        width: w, height: fontSize,
+        text: template, color, fontSize,
+      } as import('../types/pdf').TextAnno;
+      newAnnos[page.id] = [...(get().annotations[page.id] ?? []), anno];
+    }
+    set((state) => ({ annotations: { ...state.annotations, ...newAnnos } }));
+  },
+
+  removeAnnotationsByType: (type, scope, pageId) => {
+    const prev = { annotations: get().annotations, selectedAnnoId: get().selectedAnnoId };
+    const { pages, activeDocId, currentPageIndex, selectedAnnoId, annotations } = get();
+    if (!activeDocId) return;
+    const docPages = pages.filter((p) => p.sourceDocId === activeDocId);
+    // 全部页:当前文档所有页;当前页:优先用传入的 pageId(右键菜单场景),
+    // 否则回退到 currentPageIndex(属性面板场景,依赖滚动位置)。
+    const currentPages = pageId
+      ? docPages.filter((p) => p.id === pageId)
+      : [docPages[currentPageIndex]].filter(Boolean);
+    const targetPageIds = new Set(
+      (scope === 'all' ? docPages : currentPages).map((p) => p.id),
+    );
+    const next: Record<string, Annotation[]> = {};
+    let removedSelected = false;
+    for (const [pid, list] of Object.entries(annotations)) {
+      if (!targetPageIds.has(pid)) {
+        next[pid] = list;
+        continue;
+      }
+      const filtered = list.filter((a) => {
+        const match = a.type === type;
+        if (match && a.id === selectedAnnoId) removedSelected = true;
+        return !match;
+      });
+      if (filtered.length > 0) next[pid] = filtered;
+    }
+    set({
+      annotations: next,
+      selectedAnnoId: removedSelected ? null : selectedAnnoId,
+    });
+    pushAnnoCmd(set, get, prev);
+  },
 
   loadDocument: async (path, fileName) => {
     try {
@@ -339,13 +516,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const movingPages = fromIndices.map((i) => docPages[i]);
     const remainingDocPages = docPages.filter((p) => !pageIds.includes(p.id));
 
-    // toIndex 指向当前文档视图中的目标页;将移动块插入到该目标页之后。
+    // toIndex 指向拖拽释放时被替换的目标页(over 项的原位置)。
+    // 所见即所得:被拖块应落在目标页原位置,即与 dnd-kit 的 arrayMove 语义一致:
+    //   向后拖(from < to):插入目标页之后(目标页及其之前的页整体上移,被拖块占据其原位的后一格)。
+    //   向前拖(from > to):插入目标页之前(目标页及其之后的页整体下移,被拖块占据其原位)。
+    // 移动块可能是多页连续选取;以首个来源索引判断方向。
     const targetId = docPages[toIndex]?.id;
     let insertAt = remainingDocPages.length;
     if (targetId) {
       const targetInRemaining = remainingDocPages.findIndex((p) => p.id === targetId);
       if (targetInRemaining !== -1) {
-        insertAt = targetInRemaining + 1;
+        const movingFromAfter = fromIndices[0] > toIndex;
+        insertAt = movingFromAfter ? targetInRemaining : targetInRemaining + 1;
       }
     }
 
@@ -401,23 +583,32 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
       future: [],
     }));
+    if (activeDocId) markDirty(set, activeDocId);
   },
 
   rotatePages: (pageIds, degrees) => {
-    const { pages } = get();
+    const { pages, activeDocId } = get();
     const targetPages = pages.filter((p) => pageIds.includes(p.id));
     const oldRotations = new Map(targetPages.map((p) => [p.id, p.rotation]));
 
+    // 缩略图按原朝向渲染,旋转后需重渲染为新朝向(见 renderPageToDataURL 的 rotation 参数)。
+    // 清空 thumbnail 触发 PageCard 重新渲染位图,避免旧位图上叠 CSS 旋转导致变形。
     const newPages = pages.map((p) =>
       pageIds.includes(p.id)
-        ? { ...p, rotation: ((p.rotation + degrees) % 360) as 0 | 90 | 180 | 270 }
+        ? {
+            ...p,
+            rotation: ((p.rotation + degrees) % 360) as 0 | 90 | 180 | 270,
+            thumbnail: null,
+          }
         : p,
     );
 
     const undo = () => {
       set((state) => ({
         pages: state.pages.map((p) =>
-          oldRotations.has(p.id) ? { ...p, rotation: oldRotations.get(p.id)! } : p,
+          oldRotations.has(p.id)
+            ? { ...p, rotation: oldRotations.get(p.id)!, thumbnail: null }
+            : p,
         ),
       }));
     };
@@ -430,6 +621,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
       future: [],
     }));
+    if (activeDocId) markDirty(set, activeDocId);
   },
 
   deletePages: (pageIds) => {
@@ -471,6 +663,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
       future: [],
     }));
+    // 标记被删页所属文档为已编辑
+    for (const rp of removedPages) markDirty(set, rp.page.sourceDocId);
   },
 
   undo: () => {
@@ -534,6 +728,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         ),
         activeDocId: toDocId,
       }));
+    } else if (cmd.type === 'anno') {
+      // 标注快照 redo:恢复修改后的状态 next
+      const { next } = cmd.payload as {
+        next: { annotations: Record<string, Annotation[]>; selectedAnnoId: string | null };
+      };
+      set({ annotations: next.annotations, selectedAnnoId: next.selectedAnnoId });
     }
     set({
       past: [...past, cmd],
@@ -570,13 +770,28 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       }));
       const buffer = await workerClient.exportPdf(workerPages);
       await window.electronAPI.writePdf(savePath, buffer);
-      set({ isExporting: false });
+      // 导出成功后清除已导出文档的未保存标记(用户已保存工作)
+      const nextDirty = new Set(get().dirtyDocs);
+      if (mode === 'current') {
+        if (activeDocId) nextDirty.delete(activeDocId);
+      } else if (mode === 'all') {
+        nextDirty.clear();
+      } else {
+        // selected:清除所选页所属文档
+        for (const p of exportPages) nextDirty.delete(p.sourceDocId);
+      }
+      set({ isExporting: false, dirtyDocs: nextDirty });
     } catch (err) {
       set({ isExporting: false, error: String(err) });
     }
   },
 
   closeDocument: async (docId) => {
+    // 文档有未保存编辑时,先弹窗确认
+    if (get().dirtyDocs.has(docId)) {
+      const ok = window.confirm('该文档的编辑尚未保存,关闭后所有编辑内容将丢失。是否确定关闭?');
+      if (!ok) return;
+    }
     const { pages, selection, sourceDocs, activeDocId, selectedDocIds } = get();
     // 找到该文档的所有页面
     const removedPages = pages.filter((p) => p.sourceDocId === docId);
@@ -596,6 +811,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         ? remainingDocs[0]?.id ?? null
         : activeDocId;
 
+    // 从 dirtyDocs 移除已关闭的文档
+    const nextDirty = new Set(get().dirtyDocs);
+    nextDirty.delete(docId);
+
     set({
       pages: remainingPages,
       sourceDocs: remainingDocs,
@@ -605,12 +824,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         ? null
         : get().lastSelectedId,
       activeDocId: nextActive,
+      dirtyDocs: nextDirty,
       // 历史栈中可能引用已删除页面,清空避免撤销到无效状态
       past: [],
       future: [],
     });
 
-    // 通知 Worker 释放 pdf-lib 文档,主线程释放 pdf.js 渲染文档
+    // 通知 Worker 释放 pdf-lib 文档,主进程释放 pdf.js 渲染文档
     try {
       await workerClient.disposeDoc(docId);
       disposeRenderDoc(docId);
@@ -627,7 +847,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectDoc: (docId, ctrl) => {
     // Ctrl/Cmd+点击 多选文档(Set 保序 -> 合并顺序 = 用户点击顺序);
     // 普通点击单选该文档并设为 active(与 setActiveDoc 一致)。
-    if (ctrl) {
+    // 仅页面编辑模式允许多选;阅读/内容编辑模式下 Ctrl 点击退化为单选,
+    // 避免在没有多选交互(如合并)的模式里产生无法消费的多选态。
+    if (ctrl && get().mode === 'pages') {
       const next = new Set(get().selectedDocIds);
       if (next.has(docId)) next.delete(docId);
       else next.add(docId);
@@ -694,7 +916,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       }));
       const buffer = await workerClient.exportPdf(workerPages);
       await window.electronAPI.writePdf(savePath, buffer);
-      set({ isExporting: false });
+      // 另存为成功后清除该文档的未保存标记(用户已保存工作)
+      const nextDirty = new Set(get().dirtyDocs);
+      nextDirty.delete(docId);
+      set({ isExporting: false, dirtyDocs: nextDirty });
     } catch (err) {
       set({ isExporting: false, error: String(err) });
     }
@@ -825,6 +1050,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
       future: [],
     }));
+    markDirty(set, activeDocId);
   },
 
   duplicatePages: async (pageIds) => {
@@ -909,6 +1135,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
       future: [],
     }));
+    markDirty(set, activeDocId);
   },
 
   splitToNewDocument: async (pageIds) => {
@@ -971,6 +1198,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ],
       future: [],
     }));
+    // 拆分会改变源文档页面归属,标记源文档与新文档为已编辑
+    markDirty(set, fromDocId);
+    markDirty(set, toDocId);
   },
 
   saveSelectionAsDoc: async (pageIds) => {
@@ -1012,13 +1242,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selection: new Set(),
       lastSelectedId: null,
     }));
+    // 另存产生的新文档为内存合成、未保存到磁盘,关闭时需提醒
+    markDirty(set, toDocId);
     // 不推入历史(另存为是复制操作,不易撤销;如需可后续补充)
   },
 
   mergeAllDocuments: async () => {
     const { pages, sourceDocs } = get();
-    const allPages = pages.filter((p) => !p.deleted);
-    if (sourceDocs.length < 2 || allPages.length === 0) return;
+    if (sourceDocs.length < 2) return;
+    // 按侧边栏(sourceDocs)顺序 gather 各文档页面,自上而下排列
+    const allPages = sourceDocs.flatMap((d) =>
+      pages.filter((p) => p.sourceDocId === d.id && !p.deleted),
+    );
+    if (allPages.length === 0) return;
 
     const toDocId = nextDocId();
     const specs = allPages.map((p) => ({
@@ -1053,13 +1289,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selection: new Set(),
       lastSelectedId: null,
     }));
+    // 合并文档为内存合成、未保存到磁盘,关闭时需提醒
+    markDirty(set, toDocId);
   },
 
   mergeDocuments: async (docIds) => {
-    const { pages } = get();
+    const { pages, sourceDocs } = get();
     if (docIds.length < 2) return;
-    // 按用户选择顺序(传入的 docIds 顺序)gather 各文档页面
-    const mergedPages = docIds.flatMap((id) =>
+    // 按文档在侧边栏(sourceDocs)中的顺序排列,而非用户点击顺序
+    const orderedDocIds = sourceDocs.map((d) => d.id).filter((id) => docIds.includes(id));
+    // 按侧边栏顺序 gather 各文档页面
+    const mergedPages = orderedDocIds.flatMap((id) =>
       pages.filter((p) => p.sourceDocId === id && !p.deleted),
     );
     if (mergedPages.length === 0) return;
@@ -1098,5 +1338,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selection: new Set(),
       lastSelectedId: null,
     }));
+    // 合并文档为内存合成、未保存到磁盘,关闭时需提醒
+    markDirty(set, toDocId);
   },
 }));

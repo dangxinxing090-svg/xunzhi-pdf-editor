@@ -16,9 +16,10 @@ export function registerDialogHandlers(): void {
     }));
   });
 
-  ipcMain.handle('dialog:savePdf', async () => {
+  ipcMain.handle('dialog:savePdf', async (_event, defaultName?: string) => {
     const result = await dialog.showSaveDialog({
       filters: [{ name: 'PDF', extensions: ['pdf'] }],
+      defaultPath: defaultName,
     });
     if (result.canceled) {
       return null;
