@@ -26,9 +26,11 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
-      "package.json"
+      "package.json",
+      "!**/node_modules/**"
     ],
     "asar": false,
+    "electronLanguages": ["zh_CN", "zh_TW", "en_US"],
     "win": {
       "target": [
         { "target": "dir", "arch": ["x64"] }
