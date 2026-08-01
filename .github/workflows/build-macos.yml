@@ -30,7 +30,7 @@ jobs:
         run: npm run icons
 
       - name: Package (electron-builder dmg, arm64)
-        run: npx electron-builder --mac
+        run: npx electron-builder --mac --publish never
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
