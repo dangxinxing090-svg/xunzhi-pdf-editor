@@ -62,7 +62,7 @@
 
 **macOS（Apple 芯片）**
 
-1. 下载 `Xunzhi PDF Editor-0.5.0-arm64.dmg`
+1. 下载 `Xunzhi.PDF.Editor-0.5.0-arm64.dmg`
 2. 双击打开 dmg，把「Xunzhi PDF Editor」拖入「应用程序」文件夹
 3. 首次打开：**右键**（或按住 Control 点击）应用图标 → **打开**（应用未签名，macOS Gatekeeper 会拦截直接双击）
 
@@ -202,7 +202,7 @@ git push origin v0.5.0
 ```
 
 - Windows job 在 `windows-latest` 上构建，产出 `XunzhiPDFEditor-portable-win-x64.zip`
-- macOS job 在 `macos-latest` 上构建，产出 `Xunzhi PDF Editor-0.5.0-arm64.dmg`
+- macOS job 在 `macos-latest` 上构建，产出 `Xunzhi.PDF.Editor-0.5.0-arm64.dmg`（本地构建名为带空格的 `Xunzhi PDF Editor-0.5.0-arm64.dmg`，上传 GitHub 后空格转为点号）
 
 两者自动附加到同一个 GitHub Release。
 
