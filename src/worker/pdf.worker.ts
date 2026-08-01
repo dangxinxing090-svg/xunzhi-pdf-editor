@@ -1,4 +1,4 @@
-import { loadPdfFromBuffer, extractPageMeta, buildExportPdf, buildDocFromPages, insertPagesIntoDoc, applyAnnotations, applyCrop } from './pdfEngine';
+import { loadPdfFromBuffer, extractPageMeta, buildExportPdf, buildDocFromPages, insertPagesIntoDoc, applyAnnotations, applyCrop, invalidateContentStreamCaches } from './pdfEngine';
 import type { WorkerRequest, WorkerResponse, PageSpec, ApplyAnnotationsPayload, ApplyCropPayload } from './protocol';
 
 // Worker 只负责 pdf-lib 操作(加载/导出/合成)。pdf.js 渲染在渲染进程主线程进行。
@@ -13,6 +13,9 @@ function respond(msg: WorkerResponse, transfer?: Transferable[]): void {
  */
 async function pdfToBuffer(pdf: import('pdf-lib').PDFDocument): Promise<ArrayBuffer> {
   const bytes = await pdf.save();
+  // pdf-lib 缺陷:内容流编码缓存首次 save() 后不再随 push 失效,
+  // 不失效会导致"烘焙一次后再次烘焙"的新内容丢失,见 invalidateContentStreamCaches。
+  invalidateContentStreamCaches(pdf);
   return bytes.buffer.slice(
     bytes.byteOffset,
     bytes.byteOffset + bytes.byteLength,

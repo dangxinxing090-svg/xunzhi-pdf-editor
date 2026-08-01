@@ -46,7 +46,7 @@ function FileOps() {
     <>
       <button onClick={handleOpen}>打开</button>
       <button onClick={() => void exportPdf('current')} disabled={isExporting}>
-        {isExporting ? '导出中...' : '导出'}
+        {isExporting ? '另存为中...' : '另存为'}
       </button>
     </>
   );

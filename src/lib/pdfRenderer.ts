@@ -1,5 +1,5 @@
 import * as pdfjsLib from 'pdfjs-dist';
-import type { PDFDocumentProxy } from 'pdfjs-dist';
+import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
 // Vite 推荐方式:用 ?url import 让构建工具正确解析 worker 资源路径。
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import { pdfRectToScreen } from './coord';
@@ -60,11 +60,22 @@ export async function renderPageToDataURL(
   return canvas.toDataURL('image/png');
 }
 
+/** 每个 canvas 上正在进行的 pdf.js 渲染任务(用于互斥与取消)。 */
+const inflightRenders = new WeakMap<HTMLCanvasElement, RenderTask>();
+
+/** 取消指定 canvas 上正在进行的渲染(离屏释放/重新渲染前调用)。 */
+export function cancelCanvasRender(canvas: HTMLCanvasElement): void {
+  inflightRenders.get(canvas)?.cancel();
+}
+
 /**
  * 高分辨率渲染页面到独立 Canvas 元素(供右侧真实页面预览,可滚动)。
  * 调用方提供目标 canvas,函数负责设置尺寸并渲染。
  * rotation 用 pdf.js 原生 viewport.rotation 烘焙进位图:
  * canvas 物理尺寸 = 旋转后真实朝向,布局自然,不依赖 CSS transform(会留空白)。
+ *
+ * 同一 canvas 上并发 render 会抛 "Cannot use the same canvas during multiple render()",
+ * 因此开始新渲染前自动取消该 canvas 上仍在进行的旧任务。
  *
  * targetWidth 是"未旋转方向"的目标宽度(= BASE_WIDTH * zoom);
  * 内部用 rotation:0 取原始尺寸算 scale,再用 rotation 参数渲染,
@@ -96,7 +107,15 @@ export async function renderPageToCanvas(
   const ctx = canvas.getContext('2d')!;
   const transform =
     outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
-  await page.render({ canvas, canvasContext: ctx, viewport: scaledViewport, transform }).promise;
+  // getPage 期间可能已有更新的渲染启动,开始前再取消一次旧的,让后启动者获胜
+  cancelCanvasRender(canvas);
+  const task = page.render({ canvas, canvasContext: ctx, viewport: scaledViewport, transform });
+  inflightRenders.set(canvas, task);
+  try {
+    await task.promise;
+  } finally {
+    if (inflightRenders.get(canvas) === task) inflightRenders.delete(canvas);
+  }
 }
 
 /**

@@ -771,7 +771,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       exportPages = pages.filter((p) => !p.deleted);
     }
     if (exportPages.length === 0) {
-      set({ error: '没有可导出的页面' });
+      set({ error: '没有可另存为的页面' });
       return;
     }
 
@@ -925,7 +925,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { pages, sourceDocs } = get();
     const docPages = pages.filter((p) => p.sourceDocId === docId && !p.deleted);
     if (docPages.length === 0) {
-      set({ error: '没有可导出的页面' });
+      set({ error: '没有可另存为的页面' });
       return;
     }
     const doc = sourceDocs.find((d) => d.id === docId);

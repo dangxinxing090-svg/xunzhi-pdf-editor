@@ -101,7 +101,7 @@ export function PageCard({ page, index }: Props) {
           <button onClick={() => { setMenuOpen(false); deletePages(effectiveSel); }}>✕ 删除</button>
           <div className="menu-sep" />
           <button onClick={() => { setMenuOpen(false); void splitToNewDocument(effectiveSel); }}>拆分到新文档</button>
-          <button onClick={() => { setMenuOpen(false); void exportPdf('selected'); }}>导出选中页</button>
+          <button onClick={() => { setMenuOpen(false); void exportPdf('selected'); }}>另存为选中页</button>
         </div>
       )}
     </div>

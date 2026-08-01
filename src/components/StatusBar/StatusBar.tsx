@@ -39,7 +39,7 @@ export function StatusBar() {
         ) : (
           <span>{pages.length > 0 ? `第 ${currentPageIndex + 1} 页 / 共 ${pages.length} 页` : '无文档'}</span>
         )}
-        {isExporting && <span className="status-exporting">· 导出中...</span>}
+        {isExporting && <span className="status-exporting">· 另存为中...</span>}
         {error && <span className="status-error">· 错误:{error}</span>}
       </span>
       {!hideAd && (

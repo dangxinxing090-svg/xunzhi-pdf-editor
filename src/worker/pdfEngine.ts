@@ -4,8 +4,119 @@ import type { LoadDocResult, ExportPdfPayload, PageSpec, ApplyCropPayload } from
 import type { AnnoSpec } from '../types/pdf';
 import { loadCjkFontBytes } from './fontLoader';
 
+/** 文本行高倍数(与叠加层 AnnotationLayer.css 的 line-height: 1.2 一致)。 */
+const TEXT_LINE_HEIGHT = 1.2;
+/** 字体升部(em):烘焙文本基线 = 块顶 - 升部,使字形顶部对齐块顶(叠加层同规则)。 */
+const CJK_ASCENT = 0.88; // Noto Sans CJK ascender
+const HELVETICA_ASCENT = 0.718; // Helvetica ascender
+
+/** 是否已修补 fontkit CFF 子集化 bug(进程内只补一次)。 */
+let cffSubsetPatched = false;
+
+/**
+ * fontkit(@pdf-lib/fontkit@1.1.1)的 CFF 子集化有两个 bug,导致嵌入字体损坏:
+ *
+ * 1. CFFSubset.encode 把 CFF 头部的 offSize(合法值 1-4)写成原始 CFF 表长度,
+ *    OTS(Chromium)直接拒绝字体,pdf.js 字体加载失败(文本错乱漏字)。
+ *    修复:encode 前临时把 cff.length 改为合法值 4(上游 fontkit@2 同款修复)。
+ *
+ * 2. subsetFontdict 构建 FDSelect 时 fds.push(FDArray.length - 1),即"最后压入的 FD",
+ *    而不是当前字形所属的 FD(fd_select[fd])。多 FD 字体(如 NotoSansCJKsc 有 3 个 FD)
+ *    字形交错时映射错误:字形用了别的 FD 的局部 subr 表,导致 pdf.js 报
+ *    "Out of bounds subrIndex for callsubr",字形形状损坏(漏字)。
+ *    同时 used_subrs 的槽位取 used_subrs.length - 1 也错,导致用到的 subr 被错误
+ *    替换成 return 占位(形状缺失)。按上游 fontkit@2 的修复重写本函数。
+ *
+ * 升级到 fontkit@2 后可删除整个补丁。
+ */
+function patchFontkitCffSubsetBugs(fontBytes: ArrayBuffer): void {
+  if (cffSubsetPatched) return;
+  cffSubsetPatched = true;
+  // CFFSubset 类未从打包产物导出,用实例拿到其原型后替换方法
+  const probeFont = fontkit.create(new Uint8Array(fontBytes));
+  const probeSubset = probeFont.createSubset();
+  const proto = Object.getPrototypeOf(probeSubset) as {
+    encode?: (stream: unknown) => void;
+    subsetFontdict?: (topDict: any) => void;
+  };
+
+  // Bug 1:offSize 头字段
+  const origEncode = proto.encode;
+  if (origEncode) {
+    proto.encode = function (this: { cff?: { length: number } }, stream: unknown) {
+      const cff = this.cff;
+      const origLen = cff ? cff.length : undefined;
+      if (cff && origLen !== undefined && (origLen < 1 || origLen > 4)) {
+        cff.length = 4; // 修正 offSize 头字段的取值来源
+      }
+      try {
+        origEncode.call(this, stream);
+      } finally {
+        if (cff && origLen !== undefined) cff.length = origLen;
+      }
+    };
+  }
+
+  // Bug 2:FDSelect 映射 + used_subrs 槽位(fontkit@2 的修复逻辑)
+  if (proto.subsetFontdict) {
+    proto.subsetFontdict = function (this: any, topDict: any) {
+      topDict.FDArray = [];
+      topDict.FDSelect = { version: 0, fds: [] };
+      const usedFds: Record<number, boolean> = {};
+      const usedSubrs: Record<string, boolean>[] = [];
+      const fdSelect: Record<number, number> = {};
+      for (const gid of this.glyphs) {
+        const fd = this.cff.fdForGlyph(gid);
+        if (fd == null) continue;
+        if (!usedFds[fd]) {
+          topDict.FDArray.push(Object.assign({}, this.cff.topDict.FDArray[fd]));
+          usedSubrs.push({});
+          fdSelect[fd] = topDict.FDArray.length - 1;
+        }
+        usedFds[fd] = true;
+        topDict.FDSelect.fds.push(fdSelect[fd]);
+        const glyph = this.font.getGlyph(gid);
+        void glyph.path; // 触发字形解析,记录用到的局部 subr
+        for (const subr in glyph._usedSubrs) {
+          usedSubrs[fdSelect[fd]][subr] = true;
+        }
+      }
+      for (let i = 0; i < topDict.FDArray.length; i++) {
+        const dict = topDict.FDArray[i];
+        delete dict.FontName;
+        if (dict.Private && dict.Private.Subrs) {
+          dict.Private = Object.assign({}, dict.Private);
+          dict.Private.Subrs = this.subsetSubrs(dict.Private.Subrs, usedSubrs[i]);
+        }
+      }
+    };
+  }
+}
+
 export async function loadPdfFromBuffer(buffer: ArrayBuffer): Promise<PDFDocument> {
   return PDFDocument.load(buffer, { ignoreEncryption: true });
+}
+
+/**
+ * 失效所有页面内容流的编码缓存。
+ * pdf-lib 缺陷:PDFFlateStream.contentsCache 在首次 getContents()/save() 后填充,
+ * 之后再 push 算子不会失效缓存,导致"烘焙一次后再次烘焙"的新内容丢失。
+ * 每次 save 后调用本函数,确保下一次绘制/保存可见。
+ */
+export function invalidateContentStreamCaches(pdf: PDFDocument): void {
+  for (const page of pdf.getPages()) {
+    const contents = page.node.Contents();
+    if (!contents) continue;
+    // pdf-lib 未公开 Contents 的数组形态,用鸭子类型判断(asArray 仅 PDFArray 有)
+    const items = (contents as { asArray?: () => Array<unknown> }).asArray
+      ? (contents as { asArray: () => Array<unknown> }).asArray()
+      : [contents];
+    for (const ref of items) {
+      const obj = pdf.context.lookup(ref as never);
+      (obj as { contentsCache?: { invalidate?: () => void } } | undefined)
+        ?.contentsCache?.invalidate?.();
+    }
+  }
 }
 
 export function extractPageMeta(pdf: PDFDocument): LoadDocResult {
@@ -123,6 +234,7 @@ export async function applyAnnotations(
       const doc = docs.get(docId)!;
       doc.registerFontkit(fontkit);
       const bytes = await loadCjkFontBytes();
+      patchFontkitCffSubsetBugs(bytes);
       cjkFont = await doc.embedFont(bytes, { subset: true });
     }
     return cjkFont;
@@ -174,15 +286,33 @@ export async function applyAnnotations(
         // 含非 ASCII(中文等)用 CJK 字体;纯 ASCII 用 Helvetica(体积更小)
         const hasCjk = /[^\x00-\x7F]/.test(rawText);
         const textFont = hasCjk ? await getCjkFont() : font;
-        // 按行绘制:drawText 不支持自动换行,逐行定位
+        const fontSize = a.fontSize ?? 12;
+        const lineHeight = fontSize * TEXT_LINE_HEIGHT;
+        // 文本块从框顶部(a.y + a.height)向下排布,与叠加层一致(叠加层 div 顶 = 框顶)。
+        // 基线 = 块顶 - 字体升部;多行自上而下递增行高。
+        const ascent = (hasCjk ? CJK_ASCENT : HELVETICA_ASCENT) * fontSize;
         const lines = rawText.split('\n');
-        const lineHeight = (a.fontSize ?? 12) * 1.2;
-        // drawText 的 y 是该行基线(左下锚点);多行从底部向上排
+        // 块宽 = 最宽行(叠加层 width:max-content 同规则),用于旋转中心对齐
+        let textWidth = 0;
+        for (const line of lines) {
+          textWidth = Math.max(textWidth, textFont.widthOfTextAtSize(line, fontSize));
+        }
+        const blockTop = a.y + a.height;
+        const centerX = a.x + textWidth / 2;
+        const centerY = blockTop - (lines.length * lineHeight) / 2;
+        const theta = ((a.rotation ?? 0) * Math.PI) / 180;
+        const cos = Math.cos(theta);
+        const sin = Math.sin(theta);
+        // 叠加层旋转以文本块中心为原点;pdf-lib 旋转以 drawText 锚点(x,y)为原点。
+        // 把每个基线起点绕块中心旋转后作为锚点,使烘焙结果与叠加层一致。
         for (let i = 0; i < lines.length; i++) {
-          const baselineY = a.y + (lines.length - 1 - i) * lineHeight;
+          const bx = a.x;
+          const by = blockTop - ascent - i * lineHeight;
+          const ox = centerX + (bx - centerX) * cos - (by - centerY) * sin;
+          const oy = centerY + (bx - centerX) * sin + (by - centerY) * cos;
           page.drawText(lines[i], {
-            x: a.x, y: baselineY,
-            size: a.fontSize ?? 12,
+            x: ox, y: oy,
+            size: fontSize,
             font: textFont,
             color,
             opacity: a.opacity,

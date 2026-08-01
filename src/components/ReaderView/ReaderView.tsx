@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useEditorStore } from '../../store/editorStore';
-import { renderPageToCanvas } from '../../lib/pdfRenderer';
+import { renderPageToCanvas, cancelCanvasRender } from '../../lib/pdfRenderer';
 import { AnnotationLayer } from '../AnnotationLayer/AnnotationLayer';
 import type { Page } from '../../types/pdf';
 import './ReaderView.css';
@@ -123,10 +123,14 @@ function ReaderPage({ page, index, docId, zoom, mode, renderVersion }: ReaderPag
     if (!canvas) return;
     try {
       // 传未旋转方向宽度(BASE_WIDTH*zoom),renderPageToCanvas 内部用 rotation 参数渲染旋转后尺寸
+      // (renderPageToCanvas 内部会自动取消该 canvas 上仍在进行的旧渲染,避免并发 render 报错)
       await renderPageToCanvas(canvas, docId, page.sourcePageIndex, targetWidth, page.rotation);
       setRendered(true);
     } catch (err) {
-      console.error('ReaderPage render failed:', err);
+      // 被更新的渲染取消的旧任务会抛 RenderingCancelledException,忽略
+      if ((err as { name?: string }).name !== 'RenderingCancelledException') {
+        console.error('ReaderPage render failed:', err);
+      }
     }
   }, [docId, page.sourcePageIndex, page.rotation, targetWidth, renderVersion]);
 
@@ -141,9 +145,10 @@ function ReaderPage({ page, index, docId, zoom, mode, renderVersion }: ReaderPag
           if (entry.isIntersecting) {
             void render();
           } else if (rendered) {
-            // 离屏释放:清空 canvas 内容以控内存
+            // 离屏释放:取消进行中的渲染并清空 canvas 内容以控内存
             const canvas = canvasRef.current;
             if (canvas) {
+              cancelCanvasRender(canvas);
               canvas.width = 0;
               canvas.height = 0;
             }

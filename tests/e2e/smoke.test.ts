@@ -11,7 +11,7 @@ test('app loads with empty state', async ({ page }) => {
 
 test('toolbar shows open and export buttons', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('.toolbar button')).toContainText(['打开', '导出']);
+  await expect(page.locator('.toolbar button')).toContainText(['打开', '另存为']);
 });
 
 test('toolbar undo/redo disabled when no history', async ({ page }) => {

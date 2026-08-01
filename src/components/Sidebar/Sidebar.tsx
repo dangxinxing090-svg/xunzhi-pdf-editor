@@ -129,7 +129,7 @@ export function Sidebar() {
                 </button>
                 <div className="menu-sep" />
                 <button onClick={() => { setMenuDocId(null); void saveDocAs(doc.id); }}>
-                  导出…
+                  另存为…
                 </button>
                 {menuDoc?.filePath && (
                   <button onClick={() => startRename(doc.id, doc.fileName)}>
