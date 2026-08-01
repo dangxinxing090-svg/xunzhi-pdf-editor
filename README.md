@@ -52,13 +52,21 @@
 
 - **多文档管理**：侧边栏文档列表，支持重命名、合并、拆分
 - **底部广告条**：状态栏右侧推广信息，可在设置中关闭显示
-- **Windows 便携版**：解压即用，无需安装
+- **Windows 便携版 + macOS 安装包**：即下即用
 
 ---
 
 ## 下载安装
 
 前往 [Releases 页面](https://github.com/dangxinxing090-svg/xunzhi-pdf-editor/releases) 下载最新版本：
+
+**macOS（Apple 芯片）**
+
+1. 下载 `Xunzhi PDF Editor-0.5.0-arm64.dmg`
+2. 双击打开 dmg，把「Xunzhi PDF Editor」拖入「应用程序」文件夹
+3. 首次打开：**右键**（或按住 Control 点击）应用图标 → **打开**（应用未签名，macOS Gatekeeper 会拦截直接双击）
+
+**Windows**
 
 1. 下载 `XunzhiPDFEditor-portable-win-x64.zip`
 2. 解压到任意目录
@@ -85,8 +93,8 @@
 | PDF 渲染 | pdfjs-dist 6 | 页面显示（Web Worker） |
 | PDF 编辑 | pdf-lib + @pdf-lib/fontkit | 烘焙/导出/合成（Web Worker） |
 | 中文字体 | Noto Sans SC | CJK 字体 subset 嵌入 |
-| 打包 | electron-builder | Windows 便携版（asar: false） |
-| CI/CD | GitHub Actions | windows-latest 原生构建 |
+| 打包 | electron-builder | Windows 便携版 + macOS dmg（asar: false） |
+| CI/CD | GitHub Actions | windows-latest / macos-latest 原生构建 |
 | 测试 | Vitest | 单元测试 |
 
 ---
@@ -168,6 +176,7 @@ npm run dev:electron
 | `npm run dev:electron` | 开发模式（热更新 + Electron） |
 | `npm run build` | 完整构建（tsc + vite + electron tsc） |
 | `npm run package:win` | 打包 Windows 便携版 |
+| `npm run package:mac` | 打包 macOS 安装包（dmg，需在 macOS 上执行） |
 | `npm run icons` | 重新生成应用图标 |
 | `npm test` | 运行单元测试 |
 | `npm run test:e2e` | Playwright E2E 测试 |
@@ -179,20 +188,23 @@ npm run dev:electron
 ### 本地打包
 
 ```bash
-npm run package:win
-# 产出：release/win-unpacked/（便携版目录）
+npm run package:win   # 产出：release/win-unpacked/（Windows 便携版目录）
+npm run package:mac   # 产出：release/*.dmg（macOS 安装包，需在 macOS 上执行）
 ```
 
 ### GitHub Actions CI
 
-推送 `v*` 开头的 tag 自动触发 Windows 原生构建并发布 Release：
+推送 `v*` 开头的 tag 自动触发双平台原生构建并发布 Release：
 
 ```bash
-git tag v0.4.0
-git push origin v0.4.0
+git tag v0.5.0
+git push origin v0.5.0
 ```
 
-CI 在 `windows-latest` 上构建，产出 `XunzhiPDFEditor-portable-win-x64.zip` 自动附加到 GitHub Release。
+- Windows job 在 `windows-latest` 上构建，产出 `XunzhiPDFEditor-portable-win-x64.zip`
+- macOS job 在 `macos-latest` 上构建，产出 `Xunzhi PDF Editor-0.5.0-arm64.dmg`
+
+两者自动附加到同一个 GitHub Release。
 
 详见 [docs/打包说明.md](docs/打包说明.md) 和 [docs/github发布.md](docs/github发布.md)。
 
@@ -220,6 +232,8 @@ npm test    # 106 个单元测试
 
 | 版本 | 日期 | 主要内容 |
 |------|------|----------|
+| [v0.5.0](https://github.com/dangxinxing090-svg/xunzhi-pdf-editor/releases/tag/v0.5.0) | 2026-08-01 | **新增 macOS（arm64）版**：dmg 安装包 + GitHub Actions 自动构建发布 |
+| [v0.4.2](https://github.com/dangxinxing090-svg/xunzhi-pdf-editor/releases/tag/v0.4.2) | 2026-08-01 | 内容编辑烘焙三大 bug 修复 + 统一导出文案为另存为 |
 | [v0.3.0](https://github.com/dangxinxing090-svg/xunzhi-pdf-editor/releases/tag/v0.3.0) | 2026-07-30 | 旋转渲染/内嵌旋转/中文烘焙修复/当前页定位/apply 重渲染 + README |
 | [v0.2.0](https://github.com/dangxinxing090-svg/xunzhi-pdf-editor/releases/tag/v0.2.0) | 2026-07-30 | 底部广告条 + 设置面板 |
 | [v0.1.0](https://github.com/dangxinxing090-svg/xunzhi-pdf-editor/releases/tag/v0.1.0) | 2026-07-30 | 首个 Windows 便携版发布 |

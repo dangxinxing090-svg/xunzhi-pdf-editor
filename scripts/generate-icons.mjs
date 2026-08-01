@@ -1,10 +1,17 @@
-// 生成 Windows 应用图标 build/icon.ico
-// 从内嵌 SVG 渲染 1024 源图,再生成多尺寸 PNG,最后打包为 .ico
+// 生成应用图标:
+//   build/icon.ico  — Windows (多尺寸 PNG 打包为 .ico)
+//   build/icon.png  — 1024 源图
+//   build/icon.icns — macOS (iconset + iconutil, 仅 macOS 可用)
+// 从内嵌 SVG 渲染 1024 源图,再生成各平台所需尺寸
 // 运行: node scripts/generate-icons.mjs
 import sharp from 'sharp';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const buildDir = resolve(__dirname, '../build');
@@ -71,7 +78,32 @@ for (const size of sizes) {
 const ico = await buildIco(pngBuffers);
 await writeFile(resolve(buildDir, 'icon.ico'), ico);
 
-// 同时保存一张 1024 PNG 作为源图(将来做 mac 版可用)
+// 保存 1024 PNG 作为源图
 await sharp(Buffer.from(svg)).resize(1024, 1024).png().toFile(resolve(buildDir, 'icon.png'));
 
-console.log('图标已生成: build/icon.ico, build/icon.png');
+// macOS .icns:iconset 目录(16/32/128/256/512 各 @1x/@2x) + iconutil 打包
+// iconutil 仅 macOS 自带;其他平台跳过(Windows CI 不需要 icns)
+if (process.platform === 'darwin') {
+  const iconsetDir = resolve(buildDir, 'icon.iconset');
+  await mkdir(iconsetDir, { recursive: true });
+  const macSizes = [
+    [16, 'icon_16x16.png'],
+    [32, 'icon_16x16@2x.png'],
+    [32, 'icon_32x32.png'],
+    [64, 'icon_32x32@2x.png'],
+    [128, 'icon_128x128.png'],
+    [256, 'icon_128x128@2x.png'],
+    [256, 'icon_256x256.png'],
+    [512, 'icon_256x256@2x.png'],
+    [512, 'icon_512x512.png'],
+    [1024, 'icon_512x512@2x.png'],
+  ];
+  for (const [size, name] of macSizes) {
+    await sharp(Buffer.from(svg)).resize(size, size).png().toFile(resolve(iconsetDir, name));
+  }
+  await execFileAsync('iconutil', ['-c', 'icns', iconsetDir, '-o', resolve(buildDir, 'icon.icns')]);
+  await rm(iconsetDir, { recursive: true, force: true });
+  console.log('图标已生成: build/icon.ico, build/icon.png, build/icon.icns');
+} else {
+  console.log('图标已生成: build/icon.ico, build/icon.png (非 macOS 平台,跳过 icon.icns)');
+}

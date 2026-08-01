@@ -1,0 +1,45 @@
+name: Build macOS App
+
+on:
+  push:
+    tags:
+      - 'v*' # 打 v 开头的 tag 触发正式构建并上传 Release
+  workflow_dispatch: # 也可在 Actions 页面手动触发
+
+# tag 触发时需要写权限才能创建 Release
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build (tsc + vite + electron tsc)
+        run: npm run build
+
+      - name: Generate icons (ico/png/icns)
+        run: npm run icons
+
+      - name: Package (electron-builder dmg, arm64)
+        run: npx electron-builder --mac
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xunzhi-pdf-editor-mac-arm64-dmg
+          path: release/*.dmg
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.dmg

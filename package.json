@@ -1,6 +1,6 @@
 {
   "name": "xunzhi-pdf-editor",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "description": "Xunzhi PDF Editor - Electron + Vite + React + TypeScript desktop app",
   "private": true,
   "main": "dist-electron/main.js",
@@ -11,6 +11,7 @@
     "dev:electron": "npm run build:electron && vite build && cross-env NODE_ENV=development electron .",
     "build": "tsc && vite build && npm run build:electron",
     "package:win": "npm run build && electron-builder --win",
+    "package:mac": "npm run build && electron-builder --mac",
     "icons": "node scripts/generate-icons.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -34,6 +35,13 @@
         { "target": "dir", "arch": ["x64"] }
       ],
       "icon": "build/icon.ico"
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["arm64"] }
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.productivity"
     }
   },
   "dependencies": {
