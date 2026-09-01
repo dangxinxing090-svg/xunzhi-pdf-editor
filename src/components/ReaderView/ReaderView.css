@@ -1,8 +1,187 @@
-.reader-view { flex: 1; overflow: hidden; background: #525659; display: flex; }
-.reader-scroll { flex: 1; overflow-y: auto; padding: 24px 0; display: flex; flex-direction: column; align-items: center; gap: 16px; }
-.reader-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 14px; }
+/* ============================================
+   阅读画布 — 制图桌面:刻度尺 + 网格衬底 + 图幅纸影
+   ============================================ */
+.reader-view {
+  flex: 1;
+  overflow: hidden;
+  background: var(--table);
+  display: flex;
+  flex-direction: column;
+}
 
-.reader-page-wrap { position: relative; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); flex-shrink: 0; }
-.reader-page-wrap canvas { display: block; background: white; }
-.reader-page-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #999; font-size: 14px; background: #f0f0f0; }
-.reader-page-label { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #ccc; }
+/* — 顶部刻度尺:大格 40px,小格 8px,带刻度数字 — */
+.reader-ruler {
+  position: relative;
+  height: 18px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background-color: var(--panel);
+  border-bottom: 1px solid var(--hairline-strong);
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      var(--tick) 0,
+      var(--tick) 1px,
+      transparent 1px,
+      transparent 40px
+    ),
+    repeating-linear-gradient(
+      to right,
+      rgba(28, 42, 58, 0.16) 0,
+      rgba(28, 42, 58, 0.16) 1px,
+      transparent 1px,
+      transparent 8px
+    );
+  background-repeat: repeat-x;
+  background-position: left bottom;
+  background-size: 40px 10px, 8px 5px;
+}
+
+.ruler-num {
+  position: absolute;
+  top: 1px;
+  margin-left: 4px;
+  font-size: 8.5px;
+  line-height: 1;
+  color: var(--ink-numeral);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.reader-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-6) 0 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  background-image:
+    linear-gradient(to right, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(to right, var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-minor) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px;
+}
+
+/* — 空态:图纸签注块 — */
+.reader-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+.empty-sheet {
+  width: 340px;
+  background: var(--plate);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-sheet);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+}
+
+.empty-sheet h4 {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+/* 引线标注:肘形引线自图纸边框引出 + 落点圆点 */
+.empty-note {
+  position: relative;
+  margin-left: -20px; /* 引线起点落在图纸边框上(抵消图纸内边距) */
+  padding: 2px 0 2px 20px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-soft);
+}
+
+.empty-note::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14px;
+  width: 11px;
+  height: 1px;
+  background: rgba(30, 86, 176, 0.55);
+}
+
+.empty-note::after {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 11.5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  border: 1px solid rgba(30, 86, 176, 0.7);
+  background: var(--plate);
+}
+
+/* — 图幅页(纸卡):裁切角标 + 纸影 — */
+.reader-page-wrap {
+  position: relative;
+  background: var(--plate);
+  border: 1px solid rgba(28, 42, 58, 0.14);
+  border-radius: 1px;
+  box-shadow: var(--shadow-sheet);
+  flex-shrink: 0;
+}
+
+/* 对角裁切标记(左上 / 右下) */
+.reader-page-wrap::before,
+.reader-page-wrap::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+
+.reader-page-wrap::before {
+  left: -13px;
+  top: -13px;
+  border-left: 1px solid rgba(28, 42, 58, 0.35);
+  border-top: 1px solid rgba(28, 42, 58, 0.35);
+}
+
+.reader-page-wrap::after {
+  right: -13px;
+  bottom: -13px;
+  border-right: 1px solid rgba(28, 42, 58, 0.35);
+  border-bottom: 1px solid rgba(28, 42, 58, 0.35);
+}
+
+.reader-page-wrap canvas {
+  display: block;
+  background: var(--plate);
+}
+
+.reader-page-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-faint);
+  font-size: 13px;
+  background: #e9edf2;
+  font-variant-numeric: tabular-nums;
+}
+
+.reader-page-label {
+  position: absolute;
+  bottom: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: rgba(28, 42, 58, 0.55);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}

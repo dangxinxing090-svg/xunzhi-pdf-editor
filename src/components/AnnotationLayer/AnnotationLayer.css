@@ -1,30 +1,106 @@
+/* 标注交互层 — 修订标记语言 */
 .annotation-layer { position: absolute; top: 0; left: 0; outline: none; }
 .annotation-layer.creating { cursor: crosshair; }
 
 .anno-shape { position: absolute; box-sizing: border-box; cursor: move; }
-.anno-shape.selected { box-shadow: 0 0 0 2px #1976d2; }
+.anno-shape.selected { box-shadow: 0 0 0 1.5px var(--accent); }
 .anno-ellipse { border-radius: 50%; }
 
 .anno-highlight { position: absolute; cursor: move; mix-blend-mode: multiply; }
-.anno-highlight.selected { box-shadow: 0 0 0 2px #1976d2; }
+.anno-highlight.selected { box-shadow: 0 0 0 1.5px var(--accent); }
 
 .anno-image { position: absolute; cursor: move; background-position: center; }
-.anno-image.selected { box-shadow: 0 0 0 2px #1976d2; }
+.anno-image.selected { box-shadow: 0 0 0 1.5px var(--accent); }
 
-/* 选中标注的八方位缩放手柄 */
-.anno-resize-handle { position: absolute; width: 8px; height: 8px; background: #fff; border: 1px solid #1976d2; border-radius: 2px; z-index: 10; }
+/* 选中标注的八方位缩放手柄:制图控制点 */
+.anno-resize-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--plate);
+  border: 1px solid var(--accent);
+  border-radius: 1px;
+  z-index: 10;
+}
 
-.anno-text { position: absolute; cursor: move; display: flex; align-items: flex-start; overflow: visible; white-space: pre; user-select: none; line-height: 1.2; }
-.anno-text.selected { box-shadow: 0 0 0 1px #1976d2; }
+.anno-text {
+  position: absolute;
+  cursor: move;
+  display: flex;
+  align-items: flex-start;
+  overflow: visible;
+  white-space: pre;
+  user-select: none;
+  line-height: 1.2;
+}
+.anno-text.selected { box-shadow: 0 0 0 1px var(--accent); }
 
-.anno-draft { position: absolute; border: 1px dashed #1976d2; background: rgba(25, 118, 210, 0.1); pointer-events: none; }
+.anno-draft {
+  position: absolute;
+  border: 1px dashed var(--accent);
+  background: var(--accent-tint);
+  pointer-events: none;
+  opacity: 0.6;
+}
 
-.anno-text-input { position: absolute; z-index: 30; padding: 2px 4px; border: 1px solid #1976d2; border-radius: 6px; outline: none; min-width: 80px; min-height: 24px; resize: both; font-family: sans-serif; line-height: 1.2; overflow: hidden; }
+.anno-text-input {
+  position: absolute;
+  z-index: 30;
+  padding: 3px 6px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-2);
+  outline: none;
+  min-width: 80px;
+  min-height: 24px;
+  resize: both;
+  font-family: inherit;
+  line-height: 1.2;
+  overflow: hidden;
+  background: var(--plate);
+  color: var(--ink);
+  box-shadow: 0 0 0 2px var(--accent-tint-2);
+}
 
-.anno-hint { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); background: #1976d2; color: white; padding: 2px 8px; border-radius: 6px; font-size: 12px; pointer-events: none; }
+.anno-hint {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: #f2f5f8;
+  padding: 3px 10px;
+  border-radius: var(--radius-1);
+  font-size: 11px;
+  pointer-events: none;
+  box-shadow: var(--shadow-plate);
+}
 
 /* 标注右键菜单 */
 .anno-menu-overlay { position: fixed; inset: 0; z-index: 40; }
-.anno-context-menu { position: absolute; z-index: 41; background: white; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); min-width: 140px; padding: 4px 0; }
-.anno-context-menu button { display: block; width: 100%; text-align: left; padding: 6px 12px; border: none; background: none; cursor: pointer; font-size: 12px; }
-.anno-context-menu button:hover { background: #f0f0f0; }
+
+.anno-context-menu {
+  position: absolute;
+  z-index: 41;
+  background: var(--plate);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-2);
+  box-shadow: var(--shadow-plate);
+  min-width: 140px;
+  padding: var(--space-1);
+}
+
+.anno-context-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ink);
+  border-radius: var(--radius-1);
+  transition: background-color 0.1s ease-out;
+}
+
+.anno-context-menu button:hover { background: var(--plate-sunken); }

@@ -4,10 +4,34 @@ import type { EditorMode } from '../../types/pdf';
 import { ContentForms, openDialog } from '../AnnotationLayer/ContentForms';
 import { SettingsPanel, openSettings } from '../SettingsPanel/SettingsPanel';
 
-const MODE_BUTTONS: Array<{ mode: EditorMode; label: string }> = [
-  { mode: 'read', label: '阅读' },
-  { mode: 'pages', label: '页面编辑' },
-  { mode: 'content', label: '内容编辑' },
+const MODE_BUTTONS: Array<{ mode: EditorMode; label: string; icon: React.ReactNode }> = [
+  {
+    mode: 'read',
+    label: '阅读',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+      </svg>
+    ),
+  },
+  {
+    mode: 'pages',
+    label: '页面编辑',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+      </svg>
+    ),
+  },
+  {
+    mode: 'content',
+    label: '内容编辑',
+    icon: (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+      </svg>
+    ),
+  },
 ];
 
 function ModeSwitcher() {
@@ -21,6 +45,7 @@ function ModeSwitcher() {
           className={mode === b.mode ? 'active' : ''}
           onClick={() => setMode(b.mode)}
         >
+          {b.icon}
           {b.label}
         </button>
       ))}
@@ -94,15 +119,16 @@ function ReadToolbar() {
     <>
       <span className="spacer" />
       <div className="zoom-group">
-        <button onClick={() => setZoom(zoom - 0.1)} disabled={zoom <= 0.25}>−</button>
+        <button onClick={() => setZoom(zoom - 0.1)} disabled={zoom <= 0.25} title="缩小" aria-label="缩小">−</button>
         <span className="zoom-display">{Math.round(zoom * 100)}%</span>
-        <button onClick={() => setZoom(zoom + 0.1)} disabled={zoom >= 4}>+</button>
+        <button onClick={() => setZoom(zoom + 0.1)} disabled={zoom >= 4} title="放大" aria-label="放大">+</button>
       </div>
       <span className="spacer" />
       <button onClick={() => setZoom(1.0)}>适合宽度</button>
       <span className="divider" />
       <input
         className="page-jump"
+        aria-label="跳转到页"
         value={pageInput}
         onChange={(e) => setPageInput(e.target.value)}
         onBlur={(e) => handleJump(e.target.value)}
@@ -197,6 +223,26 @@ function RedoIcon() {
   );
 }
 
+/** 旋转图标:顺时针旋转箭头(SVG,不依赖字体)。 */
+function RotateIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 4 23 10 17 10" />
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+    </svg>
+  );
+}
+
+/** 删除图标:斜叉(SVG,不依赖字体)。 */
+function XIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 function PagesToolbar() {
   const selection = useEditorStore((s) => s.selection);
   const selectedDocIds = useEditorStore((s) => s.selectedDocIds);
@@ -215,8 +261,8 @@ function PagesToolbar() {
     <>
       <button onClick={() => void insertBlankPage()} disabled={!useEditorStore.getState().activeDocId}>+ 空白页</button>
       <button onClick={() => void duplicatePages(sel)} disabled={!hasSelection}>复制</button>
-      <button onClick={() => rotatePages(sel, 90)} disabled={!hasSelection}>↻ 旋转</button>
-      <button onClick={() => deletePages(sel)} disabled={!hasSelection}>✕ 删除</button>
+      <button onClick={() => rotatePages(sel, 90)} disabled={!hasSelection}><RotateIcon />旋转</button>
+      <button onClick={() => deletePages(sel)} disabled={!hasSelection}><XIcon />删除</button>
       <span className="divider" />
       <button onClick={() => void splitToNewDocument(sel)} disabled={!hasSelection}>拆出</button>
       <button onClick={() => void saveSelectionAsDoc(sel)} disabled={!hasSelection}>复制为新文档</button>

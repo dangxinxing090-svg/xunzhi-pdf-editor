@@ -1,6 +1,13 @@
 import { useEditorStore } from '../../store/editorStore';
+import type { EditorMode } from '../../types/pdf';
 
 const AD_URL = 'http://www.xunzhi.cloud';
+
+const MODE_LABEL: Record<EditorMode, string> = {
+  read: '阅读',
+  pages: '页面编辑',
+  content: '内容编辑',
+};
 
 export function StatusBar() {
   const allPages = useEditorStore((s) => s.pages);
@@ -11,6 +18,10 @@ export function StatusBar() {
   const mode = useEditorStore((s) => s.mode);
   const currentPageIndex = useEditorStore((s) => s.currentPageIndex);
   const hideAd = useEditorStore((s) => s.hideAd);
+  const zoom = useEditorStore((s) => s.zoom);
+  const activeDocName = useEditorStore((s) =>
+    s.sourceDocs.find((d) => d.id === s.activeDocId)?.fileName,
+  );
 
   // 只统计当前活跃文档的页面(与中间网格视图一致)
   const pages = allPages.filter((p) => p.sourceDocId === activeDocId);
@@ -28,8 +39,18 @@ export function StatusBar() {
 
   return (
     <div className="status-bar">
-      <span className="status-left" />
-      <span className="status-center">
+      <span className="status-cell status-doc">
+        <span className="status-label">文档</span>
+        <span className="status-doc-name" title={activeDocName ?? undefined}>
+          {activeDocName ?? '未载入文档'}
+        </span>
+      </span>
+      <span className="status-cell">
+        <span className="status-label">模式</span>
+        {MODE_LABEL[mode]}
+      </span>
+      <span className="status-cell">
+        <span className="status-label">{mode === 'pages' ? '页面' : '页码'}</span>
         {mode === 'pages' ? (
           <>
             <span>共 {pages.length} 页</span>
@@ -39,9 +60,14 @@ export function StatusBar() {
         ) : (
           <span>{pages.length > 0 ? `第 ${currentPageIndex + 1} 页 / 共 ${pages.length} 页` : '无文档'}</span>
         )}
-        {isExporting && <span className="status-exporting">· 另存为中...</span>}
-        {error && <span className="status-error">· 错误:{error}</span>}
+        {isExporting && <span className="status-exporting">另存为中...</span>}
+        {error && <span className="status-error">错误:{error}</span>}
       </span>
+      <span className="status-cell">
+        <span className="status-label">缩放</span>
+        {Math.round(zoom * 100)}%
+      </span>
+      <span className="status-cell status-grow" />
       {!hideAd && (
         <span className="status-ad">
           <span className="ad-text">系统自学任何新领域，就上</span>

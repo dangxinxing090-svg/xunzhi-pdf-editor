@@ -75,6 +75,7 @@ export function ReaderView() {
 
   return (
     <div className="reader-view">
+      <ReaderRuler />
       {activeDocId ? (
         <div className="reader-scroll" ref={scrollRef}>
           {pages.map((page, idx) => (
@@ -90,8 +91,32 @@ export function ReaderView() {
           ))}
         </div>
       ) : (
-        <div className="reader-empty">打开 PDF 文档开始阅读</div>
+        <div className="reader-empty">
+          <div className="empty-sheet">
+            <h4>打开 PDF 文档开始阅读</h4>
+            <p className="empty-note">点击工具栏「打开」,选择一个或多个 PDF 文件</p>
+            <p className="empty-note">左侧列表可在多文档之间切换、合并与拆分</p>
+            <p className="empty-note">所有处理均在本地完成,导出使用「另存为」</p>
+          </div>
+        </div>
       )}
+    </div>
+  );
+}
+
+/** 顶部刻度尺:每 40px 一道大格刻度与数字(屏幕坐标,静态)。 */
+const RULER_MAX = 4000;
+
+function ReaderRuler() {
+  const majors: number[] = [];
+  for (let x = 40; x <= RULER_MAX; x += 40) majors.push(x);
+  return (
+    <div className="reader-ruler" aria-hidden="true">
+      {majors.map((x) => (
+        <span key={x} className="ruler-num" style={{ left: x }}>
+          {x}
+        </span>
+      ))}
     </div>
   );
 }

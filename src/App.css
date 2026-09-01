@@ -1,4 +1,127 @@
+/* ============================================
+   Design Tokens — 制图桌(工程图纸世界)
+   图纸白 + 蓝黑墨线 + 普鲁士蓝(仅可操作元素) + 朱砂红(仅语义)
+   ============================================ */
+:root {
+  /* — 纸面层级 — */
+  --paper: #fbfcfd;        /* 图纸白:顶层画布 */
+  --table: #edf0f4;        /* 制图桌面:画布衬底 */
+  --panel: #f4f6f9;        /* 面板:工具栏/侧栏/检查器/状态栏 */
+  --plate: #ffffff;        /* 纸卡:卡片/浮层/输入 */
+  --plate-sunken: #e9edf2; /* 分段控件凹槽 */
+
+  /* — 墨线文字 — */
+  --ink: #1c2a3a;          /* 蓝黑墨:主文字 */
+  --ink-soft: #46586c;     /* 次级文字 */
+  --ink-mute: #6f7f92;     /* 三级/标注文字 */
+  --ink-faint: #9fabbb;    /* 禁用/占位 */
+  --ink-numeral: #5d6e81;  /* 仪器刻度数字:面板上 4.8:1,过 4.5:1 底线 */
+
+  /* — 发丝线 — */
+  --hairline: #dde3ea;
+  --hairline-strong: #c8d1db;
+
+  /* — 普鲁士蓝:只出现在可操作/激活元素上 — */
+  --accent: #1e56b0;
+  --accent-deep: #17437f;
+  --accent-tint: #edf3fb;
+  --accent-tint-2: #dbe8f8;
+  --accent-line: #a9c0e4;
+
+  /* — 朱砂红:仅语义(危险/错误) — */
+  --vermilion: #c23b2e;
+  --vermilion-deep: #a72e22;
+  --vermilion-tint: #fbeeed;
+
+  /* — 制图网格 — */
+  --grid-minor: rgba(30, 86, 176, 0.05);
+  --grid-major: rgba(30, 86, 176, 0.09);
+  --tick: rgba(28, 42, 58, 0.32);
+
+  /* — 阴影:纸浮于桌面(有偏移、有柔和扩散) — */
+  --shadow-card: 0 1px 2px rgba(18, 34, 56, 0.06);
+  --shadow-sheet: 0 1px 2px rgba(18, 34, 56, 0.10), 0 12px 32px -12px rgba(18, 34, 56, 0.22);
+  --shadow-plate: 0 1px 2px rgba(18, 34, 56, 0.07), 0 8px 24px -8px rgba(18, 34, 56, 0.18);
+  --shadow-pop: 0 2px 4px rgba(18, 34, 56, 0.08), 0 16px 40px -12px rgba(18, 34, 56, 0.26);
+
+  /* — 圆角:制图仪器,直角优先 — */
+  --radius-1: 2px;
+  --radius-2: 3px;
+  --radius-3: 3px;
+
+  /* — 间距 — */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+}
+
+/* ============================================
+   Reset & Base
+   ============================================ */
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body, #root { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-.app { display: flex; flex-direction: column; height: 100vh; }
-.workspace { display: flex; flex: 1; overflow: hidden; }
+
+html, body, #root {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI',
+    'Microsoft YaHei', system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 浏览器原生表面也属于设计:选区、焦点、光标 */
+::selection { background: rgba(30, 86, 176, 0.20); }
+
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+input, button, select, textarea { font-family: inherit; }
+
+input[type='checkbox'] { accent-color: var(--accent); }
+
+/* — 滚动条:墨色细杆 — */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #c2ccd8;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: #9dabbc; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 微型标注标签:制图注记语气 */
+.micro-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--ink-mute);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

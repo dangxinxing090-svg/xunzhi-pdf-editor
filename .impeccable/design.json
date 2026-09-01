@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-01",
+  "title": "Design System: Xunzhi PDF Editor — 工程制图桌",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "普鲁士蓝 Prussian Blue", "canonical": "#1e56b0", "tonalRamp": ["#0f2b57", "#17437f", "#1e56b0", "#4a76bd", "#7fa0d2", "#a9c0e4", "#dbe8f8", "#edf3fb"] },
+      "vermilion": { "role": "semantic", "displayName": "朱砂红 Vermilion", "canonical": "#c23b2e", "tonalRamp": ["#5c1810", "#a72e22", "#c23b2e", "#d4604f", "#e08d7e", "#eebeb4", "#fbeeed", "#fdf7f6"] },
+      "ink": { "role": "neutral", "displayName": "蓝黑墨 Ink", "canonical": "#1c2a3a", "tonalRamp": ["#0d141d", "#1c2a3a", "#33455c", "#46586c", "#5d6e81", "#6f7f92", "#9fabbb", "#dde3ea"] },
+      "paper": { "role": "neutral", "displayName": "图纸白 Paper", "canonical": "#fbfcfd", "tonalRamp": ["#c8d1db", "#dde3ea", "#e9edf2", "#edf0f4", "#f4f6f9", "#f6f9fd", "#fbfcfd", "#ffffff"] },
+      "table": { "role": "neutral", "displayName": "制图桌面 Table", "canonical": "#edf0f4", "tonalRamp": ["#9dabbc", "#c2ccd8", "#c8d1db", "#dde3ea", "#e9edf2", "#edf0f4", "#f4f6f9", "#fbfcfd"] },
+      "panel": { "role": "neutral", "displayName": "面板 Panel", "canonical": "#f4f6f9", "tonalRamp": ["#c8d1db", "#dde3ea", "#e9edf2", "#edf0f4", "#f4f6f9", "#f6f9fd", "#fbfcfd", "#ffffff"] },
+      "plate": { "role": "neutral", "displayName": "纸卡 Plate", "canonical": "#ffffff", "tonalRamp": ["#dde3ea", "#e9edf2", "#edf0f4", "#f4f6f9", "#f6f9fd", "#fbfcfd", "#ffffff", "#ffffff"] },
+      "plate-sunken": { "role": "neutral", "displayName": "凹槽 Sunken Groove", "canonical": "#e9edf2", "tonalRamp": ["#9dabbc", "#c2ccd8", "#c8d1db", "#dde3ea", "#e9edf2", "#edf0f4", "#f4f6f9", "#ffffff"] },
+      "ink-soft": { "role": "neutral", "displayName": "次级墨 Soft Ink", "canonical": "#46586c", "tonalRamp": ["#0d141d", "#1c2a3a", "#33455c", "#46586c", "#5d6e81", "#6f7f92", "#9fabbb", "#c8d1db"] },
+      "ink-mute": { "role": "neutral", "displayName": "标注墨 Muted Ink", "canonical": "#6f7f92", "tonalRamp": ["#33455c", "#46586c", "#5d6e81", "#6f7f92", "#9fabbb", "#c2ccd8", "#dde3ea", "#e9edf2"] },
+      "ink-faint": { "role": "neutral", "displayName": "淡墨 Faint Ink", "canonical": "#9fabbb", "tonalRamp": ["#5d6e81", "#6f7f92", "#9fabbb", "#c2ccd8", "#c8d1db", "#dde3ea", "#e9edf2", "#f4f6f9"] },
+      "ink-numeral": { "role": "neutral", "displayName": "刻度墨 Numeral Ink", "canonical": "#5d6e81", "tonalRamp": ["#1c2a3a", "#33455c", "#46586c", "#5d6e81", "#6f7f92", "#9fabbb", "#c8d1db", "#e9edf2"] },
+      "hairline": { "role": "neutral", "displayName": "发丝线 Hairline", "canonical": "#dde3ea", "tonalRamp": ["#9dabbc", "#c2ccd8", "#c8d1db", "#dde3ea", "#e9edf2", "#edf0f4", "#f4f6f9", "#ffffff"] },
+      "hairline-strong": { "role": "neutral", "displayName": "强发丝线 Strong Hairline", "canonical": "#c8d1db", "tonalRamp": ["#9dabbc", "#c2ccd8", "#c8d1db", "#dde3ea", "#e9edf2", "#edf0f4", "#f4f6f9", "#ffffff"] },
+      "accent-deep": { "role": "primary", "displayName": "深普鲁士蓝 Prussian Deep", "canonical": "#17437f", "tonalRamp": ["#0f2b57", "#17437f", "#1e56b0", "#4a76bd", "#7fa0d2", "#a9c0e4", "#dbe8f8", "#edf3fb"] },
+      "accent-tint": { "role": "primary", "displayName": "蓝晕 Tint", "canonical": "#edf3fb", "tonalRamp": ["#17437f", "#4a76bd", "#7fa0d2", "#a9c0e4", "#dbe8f8", "#edf3fb", "#f6f9fd", "#fbfcfd"] },
+      "accent-tint-2": { "role": "primary", "displayName": "蓝晕二 Tint 2", "canonical": "#dbe8f8", "tonalRamp": ["#17437f", "#4a76bd", "#7fa0d2", "#a9c0e4", "#dbe8f8", "#edf3fb", "#f6f9fd", "#ffffff"] },
+      "accent-line": { "role": "primary", "displayName": "蓝线 Accent Line", "canonical": "#a9c0e4", "tonalRamp": ["#17437f", "#4a76bd", "#7fa0d2", "#a9c0e4", "#dbe8f8", "#edf3fb", "#f6f9fd", "#ffffff"] },
+      "vermilion-deep": { "role": "semantic", "displayName": "深朱砂 Vermilion Deep", "canonical": "#a72e22", "tonalRamp": ["#5c1810", "#a72e22", "#c23b2e", "#d4604f", "#e08d7e", "#eebeb4", "#fbeeed", "#fdf7f6"] },
+      "grid-minor": { "role": "texture", "displayName": "网格·细 Grid Minor", "canonical": "rgba(30, 86, 176, 0.05)", "tonalRamp": ["rgba(30, 86, 176, 0.05)", "rgba(30, 86, 176, 0.05)", "rgba(30, 86, 176, 0.05)", "rgba(30, 86, 176, 0.05)", "rgba(30, 86, 176, 0.05)", "rgba(30, 86, 176, 0.05)", "rgba(30, 86, 176, 0.05)", "rgba(30, 86, 176, 0.05)"] },
+      "grid-major": { "role": "texture", "displayName": "网格·粗 Grid Major", "canonical": "rgba(30, 86, 176, 0.09)", "tonalRamp": ["rgba(30, 86, 176, 0.09)", "rgba(30, 86, 176, 0.09)", "rgba(30, 86, 176, 0.09)", "rgba(30, 86, 176, 0.09)", "rgba(30, 86, 176, 0.09)", "rgba(30, 86, 176, 0.09)", "rgba(30, 86, 176, 0.09)", "rgba(30, 86, 176, 0.09)"] },
+      "tick": { "role": "texture", "displayName": "刻度 Tick", "canonical": "rgba(28, 42, 58, 0.32)", "tonalRamp": ["rgba(28, 42, 58, 0.16)", "rgba(28, 42, 58, 0.2)", "rgba(28, 42, 58, 0.24)", "rgba(28, 42, 58, 0.28)", "rgba(28, 42, 58, 0.32)", "rgba(28, 42, 58, 0.36)", "rgba(28, 42, 58, 0.4)", "rgba(28, 42, 58, 0.45)"] }
+    },
+    "typographyMeta": {
+      "body": { "displayName": "正文", "purpose": "应用基准 13px,一切正文与空态说明。" },
+      "body-sm": { "displayName": "次级正文", "purpose": "列表项、表单标签、对话框输入、检查器属性行。" },
+      "control": { "displayName": "控件", "purpose": "按钮与分段控件文字;激活态升为 control-strong(600)。" },
+      "micro-label": { "displayName": "微型标注标签", "purpose": "章节标题:10px/600/0.12em 字距 + 标注墨,前置 6px 空心方框。" },
+      "status": { "displayName": "图签数值", "purpose": "状态栏整条 11px,数字 tabular-nums。" },
+      "dialog-title": { "displayName": "图纸签题头", "purpose": "对话框/空态题头 13px/600/0.02em,通栏 + 发丝线下划线。" },
+      "numeral": { "displayName": "仪器读数", "purpose": "一切会变的数字必须 tabular-nums。" },
+      "ruler-numeral": { "displayName": "刻度数字", "purpose": "刻度尺每 40px 一枚,8.5px,--ink-numeral。" }
+    },
+    "shadows": [
+      { "name": "shadow-card", "value": "0 1px 2px rgba(18, 34, 56, 0.06)", "purpose": "静止纸卡最低浮起:列表当前项、页面卡、预览。" },
+      { "name": "shadow-plate", "value": "0 1px 2px rgba(18, 34, 56, 0.07), 0 8px 24px -8px rgba(18, 34, 56, 0.18)", "purpose": "浮起一层的纸片:菜单、提示条;也用作悬停抬升影。" },
+      { "name": "shadow-sheet", "value": "0 1px 2px rgba(18, 34, 56, 0.10), 0 12px 32px -12px rgba(18, 34, 56, 0.22)", "purpose": "真正的纸:PDF 图幅页、空态图纸签。" },
+      { "name": "shadow-pop", "value": "0 2px 4px rgba(18, 34, 56, 0.08), 0 16px 40px -12px rgba(18, 34, 56, 0.26)", "purpose": "最高浮起:模态对话框。" }
+    ],
+    "motion": [
+      { "name": "hover-fade", "value": "0.12s ease-out", "purpose": "悬停/焦点颜色与描边渐入的统一时长。" },
+      { "name": "segment-fade", "value": "0.15s ease-out", "purpose": "分段控件(模式/工具格)的底色渐入。" },
+      { "name": "one-bit-press", "value": "transition: none", "purpose": "按下即时反色(墨↔纸或墨圈压印),无渐入——一位纪律。" },
+      { "name": "reduced-motion", "value": "prefers-reduced-motion: 全部动画/过渡压至 0.01ms", "purpose": "全局可达性兜底(App.css)。" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Toolbar Button",
+      "kind": "button",
+      "refersTo": "toolbar-button",
+      "description": "墨线描边纸卡按钮:悬停转蓝洗,按下即时墨底反色。",
+      "html": "<button class=\"ds-btn\">打 开</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 4px 11px; cursor: pointer; border-radius: var(--radius-2, 3px); border: 1px solid var(--hairline-strong, #c8d1db); background: var(--plate, #ffffff); color: var(--ink, #1c2a3a); font-size: 12px; font-weight: 500; line-height: 1.5; font-family: inherit; transition: color 0.12s ease-out, border-color 0.12s ease-out, background-color 0.12s ease-out; } .ds-btn:hover { color: var(--accent, #1e56b0); border-color: var(--accent-line, #a9c0e4); background: #f6f9fd; } .ds-btn:active { background: var(--ink, #1c2a3a); border-color: var(--ink, #1c2a3a); color: var(--paper, #fbfcfd); transition: none; } .ds-btn:focus-visible { outline: 2px solid var(--accent, #1e56b0); outline-offset: 1px; } .ds-btn:disabled { opacity: 0.38; cursor: not-allowed; }"
+    },
+    {
+      "name": "Mode Switcher (Segmented)",
+      "kind": "custom",
+      "refersTo": "segmented-button-active",
+      "description": "工位分段控件:凹槽内透明格,激活格为实心墨块,非激活按下压出墨圈。",
+      "html": "<div class=\"ds-mode\"><button class=\"ds-mode-btn ds-active\">阅读</button><button class=\"ds-mode-btn\">页面编辑</button><button class=\"ds-mode-btn\">内容编辑</button></div>",
+      "css": ".ds-mode { display: inline-flex; background: var(--plate-sunken, #e9edf2); border: 1px solid var(--hairline-strong, #c8d1db); border-radius: var(--radius-2, 3px); padding: 2px; gap: 2px; } .ds-mode-btn { padding: 4px 12px; border: none; background: transparent; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--ink-soft, #46586c); border-radius: var(--radius-1, 2px); line-height: 1.5; font-family: inherit; transition: background-color 0.15s ease-out, color 0.15s ease-out; } .ds-mode-btn:hover { color: var(--ink, #1c2a3a); background: rgba(255, 255, 255, 0.65); } .ds-mode-btn:active { background: var(--plate, #ffffff); box-shadow: inset 0 0 0 1px var(--ink, #1c2a3a); color: var(--ink, #1c2a3a); transition: none; } .ds-mode-btn.ds-active { background: var(--ink, #1c2a3a); color: #f2f5f8; font-weight: 600; }"
+    },
+    {
+      "name": "Primary Action Button",
+      "kind": "button",
+      "refersTo": "primary-action",
+      "description": "唯一主操作:普鲁士蓝实底白字,悬停/按下加深,一个状态区只给一个。",
+      "html": "<button class=\"ds-primary\">应用 (3)</button>",
+      "css": ".ds-primary { padding: 4px 11px; cursor: pointer; background: var(--accent, #1e56b0); color: #ffffff; border: 1px solid var(--accent, #1e56b0); border-radius: var(--radius-2, 3px); font-size: 12px; font-weight: 600; line-height: 1.5; font-family: inherit; transition: background-color 0.12s ease-out, border-color 0.12s ease-out; } .ds-primary:hover { background: var(--accent-deep, #17437f); border-color: var(--accent-deep, #17437f); } .ds-primary:active { background: var(--accent-deep, #17437f); transition: none; } .ds-primary:focus-visible { outline: 2px solid var(--accent, #1e56b0); outline-offset: 1px; } .ds-primary:disabled { opacity: 0.38; cursor: not-allowed; }"
+    },
+    {
+      "name": "Danger Action Button",
+      "kind": "button",
+      "refersTo": "danger-action",
+      "description": "语义危险操作:朱砂红实底,只说危险,永不做装饰。",
+      "html": "<button class=\"ds-danger\">清空全部标注</button>",
+      "css": ".ds-danger { width: 100%; padding: 6px; cursor: pointer; background: var(--vermilion, #c23b2e); color: #ffffff; border: 1px solid var(--vermilion, #c23b2e); border-radius: var(--radius-2, 3px); font-size: 12.5px; font-weight: 500; font-family: inherit; transition: background-color 0.12s ease-out; } .ds-danger:hover { background: var(--vermilion-deep, #a72e22); } .ds-danger:active { background: var(--vermilion-deep, #a72e22); transition: none; } .ds-danger:focus-visible { outline: 2px solid var(--vermilion, #c23b2e); outline-offset: 1px; }"
+    },
+    {
+      "name": "Document List Item",
+      "kind": "nav",
+      "refersTo": "list-item-active",
+      "description": "图纸列表项:当前项=纸卡浮起,多选=蓝修订标记,二者叠加=纸卡蓝圈。",
+      "html": "<div class=\"ds-list\"><div class=\"ds-item\">施工图 A.pdf</div><div class=\"ds-item ds-item-active\">合同终稿.pdf</div><div class=\"ds-item ds-item-selected\">教材章节.pdf</div></div>",
+      "css": ".ds-list { display: flex; flex-direction: column; gap: 1px; width: 200px; padding: 12px 8px; background: var(--panel, #f4f6f9); font-family: inherit; } .ds-item { display: flex; align-items: center; padding: 6px 8px; border-radius: var(--radius-1, 2px); font-size: 12.5px; cursor: pointer; color: var(--ink, #1c2a3a); border: 1px solid transparent; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background-color 0.12s ease-out, border-color 0.12s ease-out; } .ds-item:hover { background: var(--plate-sunken, #e9edf2); } .ds-item.ds-item-active { background: var(--plate, #ffffff); border-color: var(--hairline-strong, #c8d1db); font-weight: 500; box-shadow: 0 1px 2px rgba(18, 34, 56, 0.06); } .ds-item.ds-item-selected { background: var(--accent-tint, #edf3fb); border-color: var(--accent-line, #a9c0e4); } .ds-item.ds-item-active.ds-item-selected { background: var(--plate, #ffffff); border-color: var(--accent, #1e56b0); box-shadow: inset 0 0 0 1px var(--accent, #1e56b0); }"
+    },
+    {
+      "name": "Page Card with Corner Brackets",
+      "kind": "card",
+      "refersTo": "page-card",
+      "description": "图幅缩略卡:选中=蓝描边外圈 + 四角 10×2px 蓝括号(修订标记)。",
+      "html": "<div class=\"ds-page ds-selected\"><div class=\"ds-thumb\">缩略图</div><span class=\"ds-num\">3</span></div>",
+      "css": ".ds-page { position: relative; width: 156px; padding: 8px; text-align: center; background: var(--plate, #ffffff); border: 1px solid var(--hairline-strong, #c8d1db); border-radius: var(--radius-2, 3px); box-shadow: 0 1px 2px rgba(18, 34, 56, 0.06); cursor: pointer; font-family: inherit; transition: border-color 0.12s ease-out, box-shadow 0.12s ease-out, transform 0.12s ease-out; } .ds-page:hover { box-shadow: 0 1px 2px rgba(18, 34, 56, 0.07), 0 8px 24px -8px rgba(18, 34, 56, 0.18); transform: translateY(-1px); } .ds-page.ds-selected { border-color: var(--accent, #1e56b0); box-shadow: 0 0 0 1px var(--accent, #1e56b0), 0 1px 2px rgba(18, 34, 56, 0.06); } .ds-page.ds-selected::after { content: ''; position: absolute; inset: -1px; pointer-events: none; background-image: linear-gradient(var(--accent, #1e56b0), var(--accent, #1e56b0)), linear-gradient(var(--accent, #1e56b0), var(--accent, #1e56b0)), linear-gradient(var(--accent, #1e56b0), var(--accent, #1e56b0)), linear-gradient(var(--accent, #1e56b0), var(--accent, #1e56b0)), linear-gradient(var(--accent, #1e56b0), var(--accent, #1e56b0)), linear-gradient(var(--accent, #1e56b0), var(--accent, #1e56b0)), linear-gradient(var(--accent, #1e56b0), var(--accent, #1e56b0)), linear-gradient(var(--accent, #1e56b0), var(--accent, #1e56b0)); background-repeat: no-repeat; background-size: 10px 2px, 2px 10px, 10px 2px, 2px 10px, 10px 2px, 2px 10px, 10px 2px, 2px 10px; background-position: left top, left top, right top, right top, left bottom, left bottom, right bottom, right bottom; } .ds-thumb { min-height: 90px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--hairline, #dde3ea); border-radius: var(--radius-1, 2px); background: var(--table, #edf0f4); color: var(--ink-faint, #9fabbb); font-size: 11px; } .ds-num { display: block; margin-top: 2px; font-size: 11px; color: var(--ink-mute, #6f7f92); font-variant-numeric: tabular-nums; } .ds-selected .ds-num { color: var(--accent, #1e56b0); font-weight: 600; }"
+    },
+    {
+      "name": "Micro-label Section Header",
+      "kind": "custom",
+      "refersTo": "typography.micro-label",
+      "description": "章节标题=微型标注标签 + 6px 空心小方框(图纸签注记号)。",
+      "html": "<h3 class=\"ds-mlabel\">图纸列表</h3>",
+      "css": ".ds-mlabel { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; color: var(--ink-mute, #6f7f92); font-family: inherit; } .ds-mlabel::before { content: ''; width: 6px; height: 6px; border: 1.5px solid var(--ink-faint, #9fabbb); flex-shrink: 0; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "text-input",
+      "description": "纸卡输入框:聚焦=蓝描边 + 2px 蓝晕环,数字用 tabular-nums。",
+      "html": "<input class=\"ds-input\" value=\"128\" aria-label=\"页码\" />",
+      "css": ".ds-input { width: 120px; padding: 5px 8px; border: 1px solid var(--hairline-strong, #c8d1db); border-radius: var(--radius-2, 3px); font-size: 12.5px; color: var(--ink, #1c2a3a); background: var(--plate, #ffffff); font-family: inherit; font-variant-numeric: tabular-nums; transition: border-color 0.12s ease-out, box-shadow 0.12s ease-out; } .ds-input:focus, .ds-input:focus-visible { outline: none; border-color: var(--accent, #1e56b0); box-shadow: 0 0 0 2px var(--accent-tint-2, #dbe8f8); }"
+    },
+    {
+      "name": "Status Bar (Title Block)",
+      "kind": "custom",
+      "refersTo": "status-cell",
+      "description": "图签式状态栏:30px 分格,标签+值,发丝线竖隔,蓝色墨框印章表进行中。",
+      "html": "<div class=\"ds-sbar\"><span class=\"ds-cell\"><span class=\"ds-slabel\">文档</span><span class=\"ds-sdoc\">合同终稿.pdf</span></span><span class=\"ds-cell\"><span class=\"ds-slabel\">页码</span>第 3 页 / 共 18 页</span><span class=\"ds-cell\"><span class=\"ds-slabel\">缩放</span>125%</span><span class=\"ds-cell ds-grow\"><span class=\"ds-stamp\">另存为中...</span></span></div>",
+      "css": ".ds-sbar { display: flex; align-items: stretch; height: 30px; border-top: 1px solid var(--hairline-strong, #c8d1db); font-size: 11px; color: var(--ink-soft, #46586c); background: var(--panel, #f4f6f9); font-variant-numeric: tabular-nums; font-family: inherit; } .ds-cell { display: flex; align-items: center; gap: 6px; padding: 0 12px; border-right: 1px solid var(--hairline, #dde3ea); white-space: nowrap; } .ds-cell:first-child { padding-left: 16px; } .ds-grow { flex: 1; border-right: none; } .ds-slabel { font-size: 10px; letter-spacing: 0.1em; color: var(--ink-mute, #6f7f92); } .ds-sdoc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--ink, #1c2a3a); max-width: 280px; } .ds-stamp { color: var(--accent, #1e56b0); border: 1px solid currentColor; border-radius: var(--radius-1, 2px); padding: 0 6px; font-weight: 600; letter-spacing: 0.08em; }"
+    },
+    {
+      "name": "Empty-State Leader Note",
+      "kind": "custom",
+      "refersTo": "typography.body-sm",
+      "description": "空态注释=肘形引线自图纸边框引出 + 落点圆点,图纸签注语气。",
+      "html": "<div class=\"ds-sheet\"><h4 class=\"ds-sheet-title\">打开 PDF 文档开始阅读</h4><p class=\"ds-note\">点击工具栏「打开」,选择一个或多个 PDF 文件</p><p class=\"ds-note\">所有处理均在本地完成</p></div>",
+      "css": ".ds-sheet { width: 340px; background: var(--plate, #ffffff); border: 1px solid var(--hairline-strong, #c8d1db); border-radius: var(--radius-2, 3px); box-shadow: 0 1px 2px rgba(18, 34, 56, 0.10), 0 12px 32px -12px rgba(18, 34, 56, 0.22); padding: 16px 20px 20px; font-family: inherit; } .ds-sheet-title { font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--ink, #1c2a3a); padding-bottom: 10px; margin: 0 0 12px; border-bottom: 1px solid var(--hairline, #dde3ea); } .ds-note { position: relative; margin: 0 0 4px -20px; padding: 2px 0 2px 20px; font-size: 12px; line-height: 1.7; color: var(--ink-soft, #46586c); } .ds-note::before { content: ''; position: absolute; left: 0; top: 14px; width: 11px; height: 1px; background: rgba(30, 86, 176, 0.55); } .ds-note::after { content: ''; position: absolute; left: 11px; top: 11.5px; width: 5px; height: 5px; border-radius: 50%; border: 1px solid rgba(30, 86, 176, 0.7); background: var(--plate, #ffffff); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "工程制图桌 (The Drafting Table)",
+    "overview": "整个应用是一张精确仪器化的制图桌:PDF 文档是铺在桌面上的图幅,工具栏是工位条,状态栏是图纸右下角的图签(title block),选中操作是修订标记,画布下垫着 8/40px 的制图网格。系统明确拒绝类别默认的 SaaS 面板语言——没有大圆角白卡片、没有含混的灰底浮层;深度来自「纸浮于桌面」的有偏移纸影,边界来自 1px 发丝线。世界由三种墨水驱动:蓝黑墨承担一切文字与激活态墨块;普鲁士蓝是操作员的笔,只出现在手会落到或正在起作用的地方;朱砂红只说危险与错误。密度是仪器密度:13px 基准字号、紧凑控件、微型标注标签、表格数字对齐。动效服从一位(one-bit)纪律——悬停可渐入(0.12s),按下必须即时反色、无过渡。",
+    "keyCharacteristics": [
+      "纸面层级五阶:paper / table / panel / plate / plate-sunken,每阶有明确职责",
+      "普鲁士蓝唯一强调色,纪律性出现;激活模式用墨块而非蓝块",
+      "1px 发丝线是唯一的分隔语言;边框永远 1px",
+      "直角优先:2–3px 圆角上限,图幅纸近直角(1px)",
+      "8/40px 制图网格纹理只衬画布,不上面板",
+      "微型标注标签 + 表格数字(tabular-nums)构成仪器读数语气",
+      "制图装置:刻度尺、裁切角标、四角括号、引线标注、墨框印章",
+      "按下即时反色(墨↔纸),transition: none"
+    ],
+    "rules": [
+      { "name": "操作员蓝纪律(The Operator's Blue Rule)", "body": "普鲁士蓝只落在「手会落到或正在起作用」的元素上:可点击的悬停反馈、主操作实底、选中修订标记、聚焦、链接、进行中印章。静止的文字、边框、表面永远不是蓝的。检验法:这个元素现在能被点击吗?它正在进行吗?两个都否,就不能是蓝的。", "section": "colors" },
+      { "name": "墨块规则(The Ink Block Rule)", "body": "激活的模式/工具是实心墨块(--ink 底 + 纸色文字),不用蓝色——保证任何时候只有一个「工位」读数在发光,蓝留给动作。", "section": "colors" },
+      { "name": "朱砂语义规则(The Vermilion Rule)", "body": "朱砂红只表达危险/错误两种语义。不装饰、不选中、不悬停变色。", "section": "colors" },
+      { "name": "微型标注规则(The Micro-Label Rule)", "body": "章节标题一律是微型标注标签:10px、600、0.12em 字距、标注墨色,侧栏与检查器的标题再前置一枚 6px 空心方框(1.5px 淡墨描边)——图纸签注的语气,不用大标题。", "section": "typography" },
+      { "name": "表格数字规则(The Tabular Numeral Rule)", "body": "任何会更新的数字(缩放、页码、选中数、刻度、坐标)必须 font-variant-numeric: tabular-nums;仪器刻度数字另用刻度墨 --ink-numeral。数字是读数,不是文案。", "section": "typography" },
+      { "name": "画布网格规则(The Canvas Grid Rule)", "body": "8/40px 制图网格纹理只允许出现在 table 底的画布表面(阅读画布、页面图幅墙)。工具栏、侧栏、检查器、状态栏永远平整——桌面有网格,仪器面板没有。", "section": "layout" },
+      { "name": "纸浮于桌面规则(The Paper-on-Table Rule)", "body": "阴影永远是「纸的影子」:小接触影 + 向下柔散,墨蓝染色,四级封顶(card/plate/sheet/pop)。面板在静止时不带阴影——深度只属于「纸」,仪器面板靠发丝线分隔。", "section": "elevation" }
+    ],
+    "dos": [
+      "Do 用普鲁士蓝回答「这里能操作吗」:悬停、主操作、选中、聚焦、链接、进行中印章——其余一律墨色。",
+      "Do 激活的模式/工具用墨块(--ink 底),且同一时刻只允许一个墨块工位。",
+      "Do 给一切会变的数字加 font-variant-numeric: tabular-nums;刻度类数字用 --ink-numeral。",
+      "Do 章节标题用微型标注标签(10px/600/0.12em + 标注墨,可加 6px 空心方框)。",
+      "Do 面板之间用 1px 发丝线分隔(区域用 --hairline-strong,格内用 --hairline)。",
+      "Do 按下即反色::active 一律 transition: none,分段控件非激活格用白底 + inset 墨圈。",
+      "Do 从四级纸影 vocabulary 里选阴影(card/plate/sheet/pop),不要自造。",
+      "Do 用内联 SVG 线性图标(stroke: currentColor,宽 2,14–16px)。"
+    ],
+    "donts": [
+      "Don't 把普鲁士蓝用在静止的文字、标题、边框或背景上——蓝色必须能通过「可操作/激活/进行中」检验。",
+      "Don't 引入第二个强调色相,或把朱砂红当装饰/选中/品牌色用(它只说危险与错误)。",
+      "Don't 圆角超过 3px(全系统仅滚动条墨杆 5px 与引线圆点两处仪器例外)。",
+      "Don't 给按压状态加过渡动画——一位纪律,按下即终态。",
+      "Don't 把制图网格纹理或阴影放上工具栏/侧栏/检查器/状态栏——纹理只属于画布桌面。",
+      "Don't 用加粗描边表达强调——边框恒 1px,强调用双描边(inset 圈 / 外圈 / 画布对象 1.5px 蓝环)。",
+      "Don't 用图标字体或 emoji 当图标;不用外部字体,系统栈即规范。"
+    ]
+  }
+}
