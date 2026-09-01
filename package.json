@@ -1,6 +1,6 @@
 {
   "name": "xunzhi-pdf-editor",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Xunzhi PDF Editor - Electron + Vite + React + TypeScript desktop app",
   "private": true,
   "main": "dist-electron/main.js",

@@ -62,7 +62,7 @@
 
 **macOS（Apple 芯片）**
 
-1. 下载 `Xunzhi.PDF.Editor-0.5.0-arm64.dmg`
+1. 下载 `Xunzhi.PDF.Editor-0.6.0-arm64.dmg`
 2. 双击打开 dmg，把「Xunzhi PDF Editor」拖入「应用程序」文件夹
 3. 首次打开：**右键**（或按住 Control 点击）应用图标 → **打开**（应用未签名，macOS Gatekeeper 会拦截直接双击）
 
@@ -202,7 +202,7 @@ git push origin v0.5.0
 ```
 
 - Windows job 在 `windows-latest` 上构建，产出 `XunzhiPDFEditor-portable-win-x64.zip`
-- macOS job 在 `macos-latest` 上构建，产出 `Xunzhi.PDF.Editor-0.5.0-arm64.dmg`（本地构建名为带空格的 `Xunzhi PDF Editor-0.5.0-arm64.dmg`，上传 GitHub 后空格转为点号）
+- macOS job 在 `macos-latest` 上构建，产出 `Xunzhi.PDF.Editor-0.6.0-arm64.dmg`（本地构建名为带空格的 `Xunzhi PDF Editor-0.6.0-arm64.dmg`，上传 GitHub 后空格转为点号）
 
 两者自动附加到同一个 GitHub Release。
 
@@ -232,6 +232,7 @@ npm test    # 106 个单元测试
 
 | 版本 | 日期 | 主要内容 |
 |------|------|----------|
+| [v0.6.0](https://github.com/dangxinxing090-svg/xunzhi-pdf-editor/releases/tag/v0.6.0) | 2026-09-01 | **前端重设计**：「工程制图桌」视觉世界——制图网格/刻度尺画布、图签式状态栏、修订标记选中态、即时反色按压反馈；新增 PRODUCT.md 与 DESIGN.md 设计文档 |
 | [v0.5.0](https://github.com/dangxinxing090-svg/xunzhi-pdf-editor/releases/tag/v0.5.0) | 2026-08-01 | **新增 macOS（arm64）版**：dmg 安装包 + GitHub Actions 自动构建发布 |
 | [v0.4.2](https://github.com/dangxinxing090-svg/xunzhi-pdf-editor/releases/tag/v0.4.2) | 2026-08-01 | 内容编辑烘焙三大 bug 修复 + 统一导出文案为另存为 |
 | [v0.3.0](https://github.com/dangxinxing090-svg/xunzhi-pdf-editor/releases/tag/v0.3.0) | 2026-07-30 | 旋转渲染/内嵌旋转/中文烘焙修复/当前页定位/apply 重渲染 + README |
