@@ -10,3 +10,9 @@ declare module '*?arraybuffer' {
   const buffer: ArrayBuffer;
   export default buffer;
 }
+
+// Vite ?raw import:按原文导入文本资源
+declare module '*?raw' {
+  const content: string;
+  export default content;
+}

@@ -908,6 +908,110 @@
 
 .settings-label { font-size: 13px; }
 
+/* 设置项按钮:整行可点,右侧带注记 */
+.settings-row-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: var(--space-3);
+  cursor: pointer;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-2);
+  background: var(--plate);
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+  transition: color 0.12s ease-out, border-color 0.12s ease-out, background-color 0.12s ease-out;
+}
+
+.settings-row-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: #f6f9fd;
+}
+
+.settings-row-btn:active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+  transition: none;
+}
+
+.settings-row-note {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--ink-mute);
+}
+
+.settings-row-btn:hover .settings-row-note { color: var(--accent); }
+.settings-row-btn:active .settings-row-note { color: var(--paper); }
+
+/* — 开源许可查看器 — */
+.license-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 86vw);
+  max-height: 82vh;
+  background: var(--plate);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-3);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+}
+
+.license-title {
+  flex-shrink: 0;
+  padding: 12px var(--space-5) 10px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+/* 正文按原文呈现:等宽以保留文件中的分隔线对齐 */
+.license-text {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+  word-break: break-word;
+  tab-size: 2;
+}
+
+.license-text::selection { background: rgba(30, 86, 176, 0.20); }
+
+.license-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--hairline);
+  background: var(--panel);
+}
+
+.license-hint {
+  font-size: 11px;
+  color: var(--ink-mute);
+}
+
+.license-actions .settings-close-btn {
+  width: auto;
+  margin-top: 0;
+  padding: 6px 16px;
+  font-size: 12.5px;
+}
+
 .settings-checkbox {
   width: 16px;
   height: 16px;

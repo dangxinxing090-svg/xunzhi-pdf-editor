@@ -2,6 +2,7 @@ import { useEditorStore } from '../../store/editorStore';
 import type { EditorMode } from '../../types/pdf';
 
 const AD_URL = 'http://www.xunzhi.cloud';
+const AD_DISPLAY = 'www.xunzhi.cloud';
 
 const MODE_LABEL: Record<EditorMode, string> = {
   read: '阅读',
@@ -70,9 +71,20 @@ export function StatusBar() {
       <span className="status-cell status-grow" />
       {!hideAd && (
         <span className="status-ad">
-          <span className="ad-text">系统自学任何新领域，就上</span>
-          <span className="ad-url" onClick={openInBrowser}>
-            {AD_URL}
+          <span className="ad-text">自学新领域,可访问</span>
+          <span
+            className="ad-url"
+            role="link"
+            tabIndex={0}
+            onClick={openInBrowser}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openInBrowser();
+              }
+            }}
+          >
+            {AD_DISPLAY}
           </span>
         </span>
       )}

@@ -177,6 +177,7 @@ npm run dev:electron
 | `npm run build` | 完整构建（tsc + vite + electron tsc） |
 | `npm run package:win` | 打包 Windows 便携版 |
 | `npm run package:mac` | 打包 macOS 安装包（dmg，需在 macOS 上执行） |
+| `npm run notices` | 重新生成第三方开源许可声明 |
 | `npm run icons` | 重新生成应用图标 |
 | `npm test` | 运行单元测试 |
 | `npm run test:e2e` | Playwright E2E 测试 |
@@ -244,3 +245,14 @@ npm test    # 106 个单元测试
 ## 许可
 
 私有项目，未开源授权。
+
+### 第三方组件
+
+本软件包含若干第三方开源组件（pdf.js、React、pdf-lib、zustand、dnd-kit、react-window 及其传递依赖），
+以及以 SIL Open Font License 1.1 授权的中文字体 Noto Sans SC。
+
+- 完整声明：应用内 **设置 → 开源许可**
+- 随包文件：Windows 便携版在程序目录（与 `Xunzhi PDF Editor.exe` 同级）；
+  macOS 在 `Xunzhi PDF Editor.app/Contents/Resources/` 下
+- 声明文件由 `npm run notices` 自动生成（从各组件本地许可证文件逐字提取、依赖闭包自动推导），请勿手工修改
+- 基于 Electron 构建，Electron / Chromium / Node.js 的版权声明见随包的 `LICENSE.electron.txt` 与 `LICENSES.chromium.html`
