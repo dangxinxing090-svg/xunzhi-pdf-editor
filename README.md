@@ -62,7 +62,7 @@
 
 **macOS（Apple 芯片）**
 
-1. 下载 `Xunzhi.PDF.Editor-0.6.1-arm64.dmg`
+1. 下载 `Xunzhi.PDF.Editor-0.6.2-arm64.dmg`
 2. 双击打开 dmg，把「Xunzhi PDF Editor」拖入「应用程序」文件夹
 3. 首次打开：**右键**（或按住 Control 点击）应用图标 → **打开**（应用未签名，macOS Gatekeeper 会拦截直接双击）
 
@@ -203,7 +203,7 @@ git push origin v0.5.0
 ```
 
 - Windows job 在 `windows-latest` 上构建，产出 `XunzhiPDFEditor-portable-win-x64.zip`
-- macOS job 在 `macos-latest` 上构建，产出 `Xunzhi.PDF.Editor-0.6.1-arm64.dmg`（本地构建名为带空格的 `Xunzhi PDF Editor-0.6.1-arm64.dmg`，上传 GitHub 后空格转为点号）
+- macOS job 在 `macos-latest` 上构建，产出 `Xunzhi.PDF.Editor-0.6.2-arm64.dmg`（本地构建名为带空格的 `Xunzhi PDF Editor-0.6.2-arm64.dmg`，上传 GitHub 后空格转为点号）
 
 两者自动附加到同一个 GitHub Release。
 
@@ -233,6 +233,7 @@ npm test    # 106 个单元测试
 
 | 版本 | 日期 | 主要内容 |
 |------|------|----------|
+| [v0.6.2](https://github.com/dangxinxing090-svg/xunzhi-pdf-editor/releases/tag/v0.6.2) | 2026-09-15 | **修复 macOS 包缺失 Electron/Chromium 许可文件**：许可文件纳入仓库分发，不再依赖 node_modules 布局（v0.6.1 的 macOS 包受影响，建议使用本版） |
 | [v0.6.1](https://github.com/dangxinxing090-svg/xunzhi-pdf-editor/releases/tag/v0.6.1) | 2026-09-15 | **分发合规**：补齐第三方开源许可声明（随包分发 + 应用内「设置 → 开源许可」查看器）；广告文案去掉绝对化表述 |
 | [v0.6.0](https://github.com/dangxinxing090-svg/xunzhi-pdf-editor/releases/tag/v0.6.0) | 2026-09-01 | **前端重设计**：「工程制图桌」视觉世界——制图网格/刻度尺画布、图签式状态栏、修订标记选中态、即时反色按压反馈；新增 PRODUCT.md 与 DESIGN.md 设计文档 |
 | [v0.5.0](https://github.com/dangxinxing090-svg/xunzhi-pdf-editor/releases/tag/v0.5.0) | 2026-08-01 | **新增 macOS（arm64）版**：dmg 安装包 + GitHub Actions 自动构建发布 |
@@ -256,4 +257,5 @@ npm test    # 106 个单元测试
 - 随包文件：Windows 便携版在程序目录（与 `Xunzhi PDF Editor.exe` 同级）；
   macOS 在 `Xunzhi PDF Editor.app/Contents/Resources/` 下
 - 声明文件由 `npm run notices` 自动生成（从各组件本地许可证文件逐字提取、依赖闭包自动推导），请勿手工修改
-- 基于 Electron 构建，Electron / Chromium / Node.js 的版权声明见随包的 `LICENSE.electron.txt` 与 `LICENSES.chromium.html`
+- 基于 Electron 构建，Electron / Chromium / Node.js 的版权声明见随包的 `LICENSE.electron.txt` 与 `LICENSES.chromium.html`；
+  这两份文件在仓库 `third-party/electron/` 下保留副本（避免打包时依赖 node_modules 布局），Electron 升级后运行 `npm run notices` 同步

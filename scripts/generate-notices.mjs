@@ -165,6 +165,51 @@ function detectLicenseLabel(text) {
   return '见该文件正文';
 }
 
+/**
+ * Electron 自带的许可文件:打包时随包分发。
+ *
+ * 这些文件在仓库里保留一份副本(third-party/electron/),而不是直接引用
+ * node_modules/electron/dist/ —— CI runner 上该目录不存在(electron-builder 打包时
+ * 自行下载 Electron),直接引用会导致打包时静默跳过这两个文件。
+ * 本机有安装时顺带校验/刷新副本,避免 Electron 升级后副本过期。
+ */
+const ELECTRON_LICENSE_FILES = [
+  { from: 'node_modules/electron/dist/LICENSE', to: 'third-party/electron/LICENSE.electron.txt' },
+  { from: 'node_modules/electron/dist/LICENSES.chromium.html', to: 'third-party/electron/LICENSES.chromium.html' },
+];
+
+function syncElectronLicenses() {
+  let electronVersion = '';
+  try {
+    electronVersion = readJson(NM, 'electron', 'package.json').version;
+  } catch {
+    /* 未安装 electron,保留既有副本 */
+  }
+
+  for (const { from, to } of ELECTRON_LICENSE_FILES) {
+    if (!existsSync(from)) {
+      console.log(`  · ${to} —— 本机无 ${from},保留仓库既有副本`);
+      continue;
+    }
+    const src = readFileSync(from);
+    const same = existsSync(to) && readFileSync(to).equals(src);
+    if (!same) {
+      writeFileSync(to, src);
+      console.log(`  · ${to} —— 已同步更新`);
+    }
+  }
+
+  // 记录副本对应的 Electron 版本,便于升级时核对
+  writeFileSync(
+    'third-party/electron/VERSION.txt',
+    `本目录的许可文件取自 Electron ${electronVersion || '(未知版本)'} 的发布包。\n` +
+      `Electron 升级后请重新运行 npm run notices 同步。\n` +
+      `LICENSE.electron.txt     <- node_modules/electron/dist/LICENSE\n` +
+      `LICENSES.chromium.html   <- node_modules/electron/dist/LICENSES.chromium.html\n`,
+    'utf8',
+  );
+}
+
 /** 从字体 name 表读取版权行与授权声明(nameID 0/13)。 */
 function fontInfo() {
   const buf = readFileSync(FONT);
@@ -341,7 +386,7 @@ ${'='.repeat(64)}
 `;
 
 writeFileSync(OUT, notices, 'utf8');
-console.log(
-  `已生成 ${OUT}:${packages.length} 个依赖 + 1 个字体,` +
-    `许可证类型 ${[...groups.keys()].join(' / ')},${(notices.length / 1024).toFixed(1)} KB`,
-);
+console.log(`已生成 ${OUT}:${packages.length} 个依赖 + 1 个字体,` +
+  `许可证类型 ${[...groups.keys()].join(' / ')},${(notices.length / 1024).toFixed(1)} KB`);
+console.log('Electron 许可文件:');
+syncElectronLicenses();

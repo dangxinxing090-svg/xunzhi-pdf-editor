@@ -1,0 +1,4 @@
+本目录的许可文件取自 Electron 43.2.0 的发布包。
+Electron 升级后请重新运行 npm run notices 同步。
+LICENSE.electron.txt     <- node_modules/electron/dist/LICENSE
+LICENSES.chromium.html   <- node_modules/electron/dist/LICENSES.chromium.html
